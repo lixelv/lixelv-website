@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lixelv — backend developer</title>
+<meta name="description" content="lixelv. Backend development in Python, and automation.">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:title" content="lixelv — backend developer">
+<meta property="og:description" content="Backend development in Python, automation, and tools that solve real problems.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/demos.css">
+</head>
+<body>
+<div id="bar" aria-hidden="true"></div>
+
+<header class="hero" id="top">
+  <canvas id="field" aria-hidden="true"></canvas>
+  <nav aria-label="Main">
+    <a class="brand" href="#top"><span class="px"></span>lixelv</a>
+    <div class="links">
+      <a href="#stack" class="hide-s">Stack</a>
+      <a href="#work">Work</a>
+      <a href="#path" class="hide-s">Path</a>
+      <a href="#contact">Contact</a>
+      <button class="theme" id="theme" type="button" aria-label="Switch colour theme">Light</button>
+    </div>
+  </nav>
+  <h1 class="sr">lixelv</h1>
+  <div class="hero-foot">
+    <p>Backend developer. <span>Python, automation, and tools that solve real problems.</span></p>
+    <div class="mono hints" aria-hidden="true">
+      <span class="m"><kbd>Hold click</kbd>wider push</span>
+      <span class="m"><kbd>Hold right click</kbd>waves</span>
+      <span>Scroll <i>↓</i></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section aria-label="About">
+    <p class="statement" id="statement">I do backend development in Python and automation. I like building <em>tools that solve real problems</em>, from server management to handy development templates.</p>
+  </section>
+
+  <section id="stack" class="stack">
+    <h2 class="mono label rv"><span class="px"></span><span data-scramble>Stack</span></h2>
+    <ul class="sr"><li>Python</li><li>FastAPI</li><li>Docker</li><li>PostgreSQL</li><li>Redis</li><li>Nginx</li><li>JavaScript</li></ul>
+    <div aria-hidden="true">
+      <div class="mq-row"><span>Python</span><span>FastAPI</span><span>Docker</span><span>PostgreSQL</span></div>
+      <div class="mq-row ghost"><span>Redis</span><span>Nginx</span><span>JavaScript</span><span>Automation</span></div>
+    </div>
+  </section>
+
+  <section id="work">
+    <h2 class="mono label rv"><span class="px"></span><span data-scramble>Work</span></h2>
+    <div class="cards">
+
+      <article class="card" style="--n:0">
+        <div class="card-info">
+          <div>
+            <span class="mono">01 / 05</span>
+            <h3>ControlHub</h3>
+            <p>A SaaS platform for managing many computers from one place. Write a Python script in the dashboard, pick the machines, and a client on each one runs it and reports back.</p>
+            <div class="tags"><span>SvelteKit</span><span>PocketBase · Go</span><span>Python</span></div>
+          </div>
+          <a class="visit" href="https://control-hub.org/" target="_blank" rel="noopener">control-hub.org <i>↗</i></a>
+        </div>
+        <div class="viz">
+          <div class="ch" id="ch">
+            <div class="ch-bar">
+              <div class="ch-scripts" id="ch-scripts" role="group" aria-label="Script to run">
+                <button type="button" data-s="open" aria-pressed="true">run_program</button>
+                <button type="button" data-s="full" aria-pressed="false">fullscreen</button>
+                <button type="button" data-s="cmd" aria-pressed="false">cmd</button>
+                <button type="button" data-s="kill" aria-pressed="false">kill_process</button>
+                <button type="button" data-s="shutdown" aria-pressed="false">shutdown</button>
+                <button type="button" data-s="awake" aria-pressed="false">awake</button>
+              </div>
+              <button class="ch-run" id="ch-run" type="button">▶ Run on <b>3</b></button>
+            </div>
+            <pre class="ch-code" id="ch-code" aria-label="Script source"></pre>
+            <div class="ch-grid" id="ch-grid" role="group" aria-label="Computers. Click to select."></div>
+            <div class="ch-log" id="ch-log" aria-live="polite"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" style="--n:1">
+        <div class="card-info">
+          <div>
+            <span class="mono">02 / 05</span>
+            <h3>Polycode</h3>
+            <p>A web IDE for learning Python and C++. Code runs in the browser through WebAssembly, never on a server, and live sessions sync peer to peer over WebRTC.</p>
+            <div class="tags"><span>TypeScript</span><span>Go</span><span>WebAssembly</span><span>WebRTC</span></div>
+          </div>
+          <a class="visit" href="https://github.com/lixelv/polycode" target="_blank" rel="noopener">Source on GitHub <i>↗</i></a>
+        </div>
+        <div class="viz">
+          <div class="pcx" id="pcx">
+            <div class="pcx-top">
+              <span class="pcx-tab"><span class="px"></span>main.py</span>
+              <span class="pcx-status" id="pcx-status" aria-live="polite"></span>
+              <button class="pcx-run" id="pcx-run" type="button">▶ Run</button>
+            </div>
+            <div class="pcx-ed">
+              <pre class="pcx-hl" id="pcx-hl" aria-hidden="true"></pre>
+              <textarea id="pcx-code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="Python code, editable"></textarea>
+            </div>
+            <div class="pcx-con" id="pcx-con">
+              <div class="pcx-out" id="pcx-out" aria-live="polite"></div>
+              <form class="pcx-in" id="pcx-in" hidden>
+                <span class="px"></span>
+                <input id="pcx-line" autocomplete="off" spellcheck="false" aria-label="Input for the running program" placeholder="type here, press Enter">
+              </form>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" style="--n:2">
+        <div class="card-info">
+          <div>
+            <span class="mono">03 / 05</span>
+            <h3>GlassChat</h3>
+            <p>A native AI chat app for Mac, built with SwiftUI and Liquid Glass. Bring your own API key, pick a model, and connect MCP tools.</p>
+            <div class="tags"><span>Swift</span><span>SwiftUI</span><span>MCP</span></div>
+          </div>
+          <a class="visit" href="https://github.com/lixelv/glasschat" target="_blank" rel="noopener">Source on GitHub <i>↗</i></a>
+        </div>
+        <div class="viz glass" id="gc-viz">
+          <div class="gc" id="gc">
+            <div class="gc-side" aria-hidden="true">
+              <div class="lights"><i></i><i></i><i></i></div>
+              <b class="act">About lixelv</b><b>Swift notes</b><b>MCP setup</b><b>Trip ideas</b>
+            </div>
+            <div class="gc-main">
+              <span class="gc-model" id="gc-model">Model ▾</span>
+              <div class="gc-msgs" id="gc-msgs" aria-live="polite"></div>
+              <div class="gc-chips" id="gc-chips"></div>
+              <form class="gc-input" id="gc-form">
+                <input id="gc-in" placeholder="Ask about lixelv" aria-label="Message" maxlength="300" autocomplete="off">
+                <button type="submit" aria-label="Send">↑</button>
+              </form>
+              <span class="gc-quota" id="gc-quota"></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" style="--n:3">
+        <div class="card-info">
+          <div>
+            <span class="mono">04 / 05</span>
+            <h3>Ionet</h3>
+            <p>A header-only C++ networking library for TCP apps: binary serialization, an ECDH handshake and ChaCha20 encryption, with zero external dependencies.</p>
+            <div class="tags"><span>C++23</span><span>TCP</span><span>ECDH</span><span>ChaCha20</span></div>
+          </div>
+          <a class="visit" href="https://github.com/lixelv/ionet" target="_blank" rel="noopener">Source on GitHub <i>↗</i></a>
+        </div>
+        <div class="viz">
+          <div class="nx" id="nx">
+            <form class="nx-bar" id="nx-form">
+              <input id="nx-msg" value="hello" maxlength="14" aria-label="Message to send" spellcheck="false" autocomplete="off">
+              <button type="submit">Send</button>
+              <label class="nx-sw"><input type="checkbox" id="nx-enc" checked><span aria-hidden="true"></span>Encrypt</label>
+            </form>
+            <div class="nx-grid">
+              <section class="nx-b" data-b="tx"><h4>Transmitter <em>client</em></h4><div class="nx-cells" id="nx-tx"></div><p id="nx-tx-n"></p></section>
+              <div class="nx-wire" id="nx-wire" aria-hidden="true"></div>
+              <section class="nx-b" data-b="rx"><h4>Receiver <em>server</em></h4><div class="nx-cells" id="nx-rx"></div><p id="nx-rx-n"></p></section>
+              <section class="nx-b nx-x" data-b="enc"><h4>Encryptor <em>↑</em></h4><div class="nx-cells" id="nx-en"></div><p id="nx-en-n"></p></section>
+              <div class="nx-key nx-x" id="nx-key" aria-hidden="true"></div>
+              <section class="nx-b nx-x" data-b="dec"><h4>Decryptor <em>↓</em></h4><div class="nx-cells" id="nx-de"></div><p id="nx-de-n"></p></section>
+            </div>
+            <p class="mono nx-step" id="nx-step" aria-live="polite"></p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" style="--n:4">
+        <div class="card-info">
+          <div>
+            <span class="mono">05 / 05</span>
+            <h3>Calculator</h3>
+            <p>A small, fast calculator on a pure stack. The one on the right is a sketch of the idea, and it works. Try the keyboard too.</p>
+            <div class="tags"><span>JavaScript</span><span>No framework</span></div>
+          </div>
+          <a class="visit" href="https://github.com/lixelv/calculator-app" target="_blank" rel="noopener">Source on GitHub <i>↗</i></a>
+        </div>
+        <div class="viz">
+          <div class="calc" id="calc" role="group" aria-label="Calculator demo" tabindex="0">
+            <span class="calc-expr" id="calc-expr" aria-hidden="true"></span>
+            <output aria-live="polite">0</output>
+            <div>
+              <button type="button">7</button><button type="button">8</button><button type="button">9</button><button type="button" class="op">÷</button>
+              <button type="button">4</button><button type="button">5</button><button type="button">6</button><button type="button" class="op">×</button>
+              <button type="button">1</button><button type="button">2</button><button type="button">3</button><button type="button" class="op">−</button>
+              <button type="button" class="op">C</button><button type="button">0</button><button type="button" class="eq">=</button><button type="button" class="op">+</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="path">
+    <h2 class="mono label rv"><span class="px"></span><span data-scramble>Path</span></h2>
+    <ol class="path" id="pathlist">
+      <div class="rail" aria-hidden="true"><b></b></div>
+      <li><span class="mono">2023</span><h3>First commits</h3><p>Joined GitHub in May and started with Python.</p></li>
+      <li><span class="mono">2024</span><h3>Bots and web tools</h3><p>Telegram bots, the calculator, and small apps in Svelte and TypeScript.</p></li>
+      <li><span class="mono">2025</span><h3>ControlHub</h3><p>Started the organisation in April. Published Docker templates for FastAPI and aiogram.</p></li>
+      <li><span class="mono">Now</span><h3>ITMO University</h3><p>Studying, and shipping side projects in C++, Swift and TypeScript.</p></li>
+    </ol>
+  </section>
+
+  <section id="contact" class="contact">
+    <h2 class="mono label rv"><span class="px"></span><span data-scramble>Contact</span></h2>
+    <a class="big rv" href="https://github.com/lixelv" target="_blank" rel="noopener" aria-label="github.com/lixelv"><span data-scramble>github.com/lixelv</span><span aria-hidden="true">↗</span></a>
+    <footer class="mono">
+      <span>© 2026 lixelv</span>
+      <a href="https://github.com/control-hub" target="_blank" rel="noopener">github.com/control-hub ↗</a>
+      <a href="#top">Back to top ↑</a>
+    </footer>
+  </section>
+</main>
+
+<script src="js/main.js" defer></script><script type="module" src="js/demos/controlhub.js"></script>
+<script type="module" src="js/demos/polycode.js"></script>
+<script type="module" src="js/demos/glasschat.js"></script>
+<script type="module" src="js/demos/ionet.js"></script>
+<script type="module" src="js/demos/calculator.js"></script>
+</body>
+</html>

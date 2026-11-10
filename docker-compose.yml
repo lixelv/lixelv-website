@@ -1,0 +1,28 @@
+# FastAPI server + static site (see Dockerfile).
+#
+#   cp .env.example .env     # put your OpenRouter key in it
+#   docker compose up -d --build
+#
+# Settings come from .env (template: .env.example). The site also starts without it;
+# the chat then answers that it is switched off.
+services:
+  web:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - chat-data:/data      # the daily message counter survives restarts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/chat/quota')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  chat-data:

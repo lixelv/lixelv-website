@@ -20,6 +20,11 @@ async function until(fn, timeout, first = 0) {
   for (const end = Date.now() + timeout; Date.now() < end; await wait(80)) if (fn()) return true;
   return false;
 }
+/** A pause the visitor can cut short (see `hurry`): the `wait` tool, a highlight, a caption. */
+let endPause = null;
+const pause = ms => new Promise(done => { endPause = done; setTimeout(done, ms); });
+export function hurry() { if (endPause) endPause(); }
+const clampN = (v, lo, hi, or) => { v = Number(v); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : or; };
 function make(tag, cls, html = '') { const el = document.createElement(tag); el.className = cls; el.innerHTML = html; return el; }
 
 /* ---------- pinned mode ---------- */
@@ -70,12 +75,18 @@ export function unpin() {
   dock.classList.remove('on', 'away'); fly(first);
   pinBtn.setAttribute('aria-pressed', 'false'); pinBtn.title = 'Pin to the side';
 }
-pinBtn.addEventListener('click', () => (pinned ? unpin() : pin()));
-$('button', away).addEventListener('click', unpin);
-addEventListener('keydown', e => { if (e.key === 'Escape') unpin(); });
+/** The visitor sent the chat home (a tool doing the same is not announced): a running guide stops. */
+function release() {
+  if (!pinned) return;
+  unpin();
+  dispatchEvent(new CustomEvent('chat:released'));
+}
+pinBtn.addEventListener('click', () => (pinned ? release() : pin()));
+$('button', away).addEventListener('click', release);
+addEventListener('keydown', e => { if (e.key === 'Escape') release(); });
 // A click that is neither in the chat nor on a demo sends the chat home.
 addEventListener('pointerdown', e => {
-  if (pinned && e.isTrusted && e.target !== root && !e.target.closest('.gc, .viz')) unpin();
+  if (pinned && e.isTrusted && e.target !== root && !e.target.closest('.gc, .viz')) release();
 }, true);
 let ticking = false;
 addEventListener('scroll', () => { if (pinned && !ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; watch(); }); } }, { passive: true });
@@ -109,7 +120,7 @@ async function reveal(el) {
 }
 
 /* ---------- the cursor ---------- */
-const ghost = make('div', 'mcp-cursor', '<svg viewBox="0 0 20 22" width="20" height="22"><path d="M3 2v14.2l3.9-3.5 2.7 6 2.4-1.1-2.7-5.9 5.2-.3z"/></svg><b>GlassChat</b>');
+const ghost = make('div', 'mcp-cursor', '<svg viewBox="0 0 20 22" width="20" height="22"><path d="M3 2v14.2l3.9-3.5 2.7 6 2.4-1.1-2.7-5.9 5.2-.3z"/></svg><b>GlassChat</b><em></em>');
 ghost.setAttribute('aria-hidden', 'true');
 document.body.append(ghost);
 let gx = 0, gy = 0, shown = false, restTimer = 0;
@@ -117,6 +128,11 @@ let gx = 0, gy = 0, shown = false, restTimer = 0;
 function place() {
   ghost.style.transform = `translate(${(gx - 3).toFixed(1)}px, ${(gy - 2).toFixed(1)}px)`;
   dispatchEvent(new CustomEvent('ghost:move', { detail: { x: gx, y: gy } }));   // the dot fields part for it too
+}
+const spot = (x, y) => ({ getBoundingClientRect: () => ({ left: x, top: y, width: 0, height: 0 }) });   // a bare point as a target
+async function appear() {      // the cursor comes into view where it stands
+  clearTimeout(restTimer);
+  if (!shown) { [gx, gy] = origin(); place(); ghost.classList.add('on'); shown = true; await sleep(160); }
 }
 const point = (el, fx, fy) => { const r = el.getBoundingClientRect(); return [r.left + r.width * fx, r.top + r.height * fy]; };
 function origin() {            // the cursor comes out of the chat's send button
@@ -187,6 +203,106 @@ async function open(i) {
   await sleep(220);
 }
 
+/** What the visitor is looking at: the card or section in the middle of the screen. */
+function inView() {
+  const el = document.elementFromPoint(innerWidth * (narrow() ? .5 : .75), innerHeight * .5);
+  const card = el && el.closest('.card');
+  if (card) return `the ${Object.keys(CARD)[cards.indexOf(card)]} card`;
+  const sec = el && el.closest('section[id], header[id], .hero, footer');
+  if (!sec) return 'the page';
+  if (sec.matches('.hero')) return 'the top (the name in pixels)';
+  return `the ${Object.keys(SECTION).find(k => SECTION[k] === '#' + sec.id) || sec.id || 'footer'} section`;
+}
+
+/* ControlHub */
+const chTiles = () => $$('#ch-grid .pc');
+const chState = () => chTiles().map(t => `${$('.nm span', t).textContent} ${t.dataset.status}${t.classList.contains('sel') ? ' [selected]' : ''}${t.classList.contains('full') ? ' (notepad, fullscreen)' : t.classList.contains('has-win') ? ' (notepad open)' : ''}`).join('; ');
+/** Chooses a script and, if given, the computers. Returns a message when it cannot. */
+async function chSelect(script, computers) {
+  const id = SCRIPT[script];
+  if (!id) return `There is no script "${script}".`;
+  await open(CARD.controlhub);
+  const tiles = chTiles(), working = () => tiles.some(t => /running|booting/.test(t.dataset.status));
+  await until(() => !working(), 5000, 650);        // the demo runs once by itself when it first comes into view
+  await press($(`#ch-scripts [data-s="${id}"]`));
+  if (Array.isArray(computers)) {
+    const want = new Set(computers.map(Number));
+    for (const [i, tile] of tiles.entries()) if (tile.classList.contains('sel') !== want.has(i + 1)) await press(tile, .5, .4);
+  }
+  return { run: $('#ch-run'), working };
+}
+
+/* Polycode */
+function poly() {
+  const run = $('#pcx-run');
+  return { ed: $('#pcx-code'), run, status: $('#pcx-status'), out: $('#pcx-out'), form: $('#pcx-in'), line: $('#pcx-line'), running: () => run.classList.contains('stop') };
+}
+/** The source appears line by line, as if pasted by a quick typist; a long program takes no longer. */
+async function polyType(code) {
+  const { ed } = poly();
+  await reveal(ed); await moveTo(ed, .2, .25);
+  const lines = code.split('\n'), chunk = Math.ceil(lines.length / 60), per = Math.min(80, 1500 / Math.ceil(lines.length / chunk));
+  for (let i = chunk; i < lines.length + chunk; i += chunk) {
+    ed.value = lines.slice(0, i).join('\n');
+    ed.dispatchEvent(new Event('input', { bubbles: true }));
+    ed.scrollTop = ed.scrollHeight;
+    await sleep(per);
+  }
+  ed.scrollTop = 0; ed.dispatchEvent(new Event('scroll'));
+}
+/** Follows a run to its end, typing `queue` into input() as it is asked for. `start` presses Run. */
+async function polyWatch(queue, start) {
+  const { run, status, out, form, line, running } = poly();
+  let started = !start && running(), note = '';
+  const seen = new MutationObserver(() => { if (running()) started = true; });   // a quick program is over between two looks
+  seen.observe(run, { attributes: true, attributeFilter: ['class'] });
+  if (start) await start();
+  for (const began = Date.now(); ;) {
+    await wait(120);
+    if (Date.now() - began > 60_000) { note = ' Stopped after 60 seconds.'; if (running()) run.click(); break; }
+    if (!form.hidden) {
+      if (!queue.length) { note = ' The program is waiting at input(). Answer with polycode_input, or end it with polycode_stop.'; break; }
+      await typeInto(line, queue.shift());
+      if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      await until(() => form.hidden || !running(), 1500);
+      continue;
+    }
+    if (started && !running()) break;
+    if (!started && Date.now() - began > 900 && status.classList.contains('bad')) break;   // Python did not load
+  }
+  seen.disconnect();
+  return `Status: ${status.textContent.trim() || 'unknown'}.${note}\nConsole:\n${out.textContent.slice(-1100) || '(nothing printed)'}`;
+}
+
+/* Ionet */
+async function ionetDone() {
+  const step = $('#nx-step'), secure = $('#nx-enc').checked, done = () => step.textContent.startsWith('Delivered');
+  await until(() => !done(), 600);
+  const ok = await until(done, 30_000);
+  const cells = sel => $$(sel + ' > i').map(i => i.textContent).join(' ');
+  const got = $$(secure ? '#nx-de > i' : '#nx-rx > i').map(i => i.textContent).join('').replace(/␣/g, ' ');
+  return `${ok ? step.textContent : 'It did not finish in time.'} Sent "${$('#nx-msg').value}". On the wire: ${cells('#nx-tx')}. ${secure ? `Both sides derived the same key (starts ${$('#nx-key b')?.textContent || '?'}). The visitor saw each byte XORed with the keystream, written as a column sum in binary. ` : ''}The receiver read "${got}".`;
+}
+
+/* things `highlight` can point at: [card, selector] */
+const SPOT = {
+  'hero': [-1, '.hero'], 'theme_button': [-1, '#theme'],
+  'controlhub.scripts': [0, '#ch-scripts'], 'controlhub.computers': [0, '#ch-grid'], 'controlhub.run': [0, '#ch-run'], 'controlhub.log': [0, '#ch-log'],
+  'polycode.editor': [1, '.pcx-ed'], 'polycode.run': [1, '#pcx-run'], 'polycode.console': [1, '#pcx-con'],
+  'glasschat.window': [2, '#gc'],
+  'ionet.input': [3, '#nx-form'], 'ionet.encryptor': [3, '#nx [data-b="enc"]'], 'ionet.transmitter': [3, '#nx [data-b="tx"]'], 'ionet.wire': [3, '#nx-wire'],
+  'ionet.receiver': [3, '#nx [data-b="rx"]'], 'ionet.decryptor': [3, '#nx [data-b="dec"]'], 'ionet.key': [3, '#nx-key'],
+  'calculator.display': [4, '#calc output'], 'calculator.keys': [4, '#calc'],
+};
+/* ways across the pixel field for `hero_push`: k in 0..1 -> a point in the hero's box */
+const PATHS = {
+  sweep: (k, w, h) => [w * (.1 + .8 * k), h * (.47 + .12 * Math.sin(k * 6.283))],
+  circle: (k, w, h) => [w * .5 + h * .3 * Math.cos(k * 6.283 - 1.571), h * .47 + h * .22 * Math.sin(k * 6.283 - 1.571)],
+  zigzag: (k, w, h) => [w * (.12 + .76 * k), h * (.47 + .2 * (2 * Math.abs((k * 4) % 2 - 1) - 1))],
+};
+/* tools that work a demo: the page holds for a moment after them, so the result can be seen */
+const DEMO = /^(controlhub|polycode|ionet|calculator|hero)_|^set_theme$/;
+
 const TOOLS = {
   async go_to({ target }) {
     if (target in CARD) { await showCard(CARD[target]); return `The ${target} card is on screen.`; }
@@ -203,77 +319,145 @@ const TOOLS = {
     return want ? 'The chat is pinned to the side. The visitor can send it back with Esc or a click outside.' : 'The chat is back in its card.';
   },
 
+  async unpin_chat() { return TOOLS.pin_chat({ pinned: false }); },
+
+  async scroll_by({ screens = 1 }) {
+    const by = clampN(screens, -3, 3, 1), from = scrollY;
+    await scrollToY(scrollY + by * innerHeight);
+    const moved = Math.round(scrollY - from);
+    return `${moved ? `Scrolled ${moved > 0 ? 'down' : 'up'} ${Math.abs(moved)} px.` : 'The page is already at its end there.'} In view now: ${inView()}.`;
+  },
+
+  async get_page_state() {
+    const light = root.dataset.theme ? root.dataset.theme === 'light' : matchMedia('(prefers-color-scheme: light)').matches;
+    const max = Math.max(1, root.scrollHeight - innerHeight), pc = poly();
+    return [
+      `In view: ${inView()}. Scrolled ${Math.round(scrollY / max * 100)}% of the page.`,
+      `Theme: ${light ? 'light' : 'dark'}. Chat: ${pinned ? 'pinned to the side' : 'in its card'}. Screen: ${narrow() ? 'narrow (phone layout)' : 'wide'}.${reduce ? ' The visitor asked for reduced motion.' : ''}`,
+      `ControlHub: ${chState()}.`,
+      `Polycode: ${pc.status.textContent.trim() || 'not started'}${pc.running() ? ', a program is running' : ''}${pc.form.hidden ? '' : ', waiting at input()'}.`,
+      `Ionet: ${$('#nx-enc').checked ? 'encrypted' : 'plain'} session, message "${$('#nx-msg').value}". ${$('#nx-step').textContent}`,
+      `Calculator display: ${$('#calc output').textContent}.`,
+    ].join('\n');
+  },
+
+  async read_section({ target }) {
+    const el = target in CARD ? $('.card-info', cards[CARD[target]]) : $(target === 'top' ? '.hero' : SECTION[target] || '');
+    if (!el) return `There is no "${target}" on this page.`;
+    const text = (el.innerText || el.textContent).replace(/\s*\n\s*/g, '\n').replace(/[ \t]+/g, ' ').trim();
+    return text.slice(0, 1300) || '(no text there)';
+  },
+
+  async highlight({ target, seconds = 2 }) {
+    const at = SPOT[target];
+    if (!at) return `There is nothing called "${target}". Use one of: ${Object.keys(SPOT).join(', ')}.`;
+    if (target === 'hero') await scrollToY(0);
+    else if (at[0] >= 0 && !(at[0] === CARD.glasschat && pinned)) await open(at[0]);
+    const el = $(at[1]);
+    if (!el || !el.getClientRects().length) return `"${target}" is not shown right now.`;
+    await reveal(el); await moveTo(el, .5, .5);
+    el.classList.add('mcp-spot');
+    await pause(clampN(seconds, .5, 6, 2) * 1000);
+    el.classList.remove('mcp-spot');
+    return `Pointed at ${target}.`;
+  },
+
+  async caption({ text = '', seconds = 3 }) {
+    text = String(text).replace(/\s+/g, ' ').trim().slice(0, 90);
+    if (!text) return 'No text was given.';
+    await appear();
+    const label = $('em', ghost);
+    label.textContent = text; ghost.classList.add('say');
+    await pause(clampN(seconds, 1, 8, 3) * 1000);
+    ghost.classList.remove('say');
+    return 'The caption was shown next to your cursor.';
+  },
+
+  async wait({ seconds = 2 }) {
+    const s = clampN(seconds, .5, 8, 2), began = Date.now();
+    await pause(s * 1000);
+    return `Waited ${((Date.now() - began) / 1000).toFixed(1)} s.`;
+  },
+
+  async controlhub_select({ script, computers }) {
+    const r = await chSelect(script, computers);
+    return typeof r === 'string' ? r : `Selected ${script}. The button says "${r.run.textContent.trim()}". Computers: ${chState()}.`;
+  },
+
   async controlhub_run({ script, computers }) {
-    const id = SCRIPT[script];
-    if (!id) return `There is no script "${script}".`;
-    await open(CARD.controlhub);
-    const tiles = $$('#ch-grid .pc'), run = $('#ch-run'), log = $('#ch-log');
-    const working = () => tiles.some(t => /running|booting/.test(t.dataset.status));
-    await until(() => !working(), 5000, 650);        // the demo runs once by itself when it first comes into view
-    await press($(`#ch-scripts [data-s="${id}"]`));
-    if (Array.isArray(computers)) {
-      const want = new Set(computers.map(Number));
-      for (const [i, tile] of tiles.entries()) if (tile.classList.contains('sel') !== want.has(i + 1)) await press(tile, .5, .4);
-    }
-    const state = () => tiles.map(t => `${$('.nm span', t).textContent} ${t.dataset.status}${t.classList.contains('full') ? ' (notepad, fullscreen)' : t.classList.contains('has-win') ? ' (notepad open)' : ''}`).join('; ');
-    if (run.disabled) return `Nothing ran. The button says "${run.textContent.trim()}". Computers: ${state()}.`;
+    const r = await chSelect(script, computers);
+    if (typeof r === 'string') return r;
+    const { run, working } = r, log = $('#ch-log');
+    if (run.disabled) return `Nothing ran. The button says "${run.textContent.trim()}". Computers: ${chState()}.`;
     const before = log.firstElementChild;
     await press(run);
     await until(() => !working(), 9000, 700);
     const rows = [];
-    for (let r = log.firstElementChild; r && r !== before && rows.length < 9; r = r.nextElementSibling) rows.unshift(r.textContent.replace(/^[\d:]+/, '').trim());
-    return `Ran ${script}. Log: ${rows.join(' | ')}. Computers now: ${state()}.`;
+    for (let r2 = log.firstElementChild; r2 && r2 !== before && rows.length < 9; r2 = r2.nextElementSibling) rows.unshift(r2.textContent.replace(/^[\d:]+/, '').trim());
+    return `Ran ${script}. Log: ${rows.join(' | ')}. Computers now: ${chState()}.`;
+  },
+
+  async polycode_set_code({ code = '' }) {
+    code = String(code).replace(/\r/g, '');
+    if (!code.trim()) return 'No code was given.';
+    await open(CARD.polycode);
+    const pc = poly();
+    if (pc.running()) { await press(pc.run); await until(() => !pc.running(), 3000); }
+    await polyType(code);
+    return `The editor holds the program now (${code.split('\n').length} lines). It has not been run.`;
   },
 
   async polycode_run({ code = '', stdin = [] }) {
-    code = String(code).replace(/\r/g, '').slice(0, 1200);
-    if (!code.trim()) return 'No code was given.';
+    code = String(code).replace(/\r/g, '');
     await open(CARD.polycode);
-    const ed = $('#pcx-code'), run = $('#pcx-run'), status = $('#pcx-status'), out = $('#pcx-out'), form = $('#pcx-in'), line = $('#pcx-line');
-    const running = () => run.classList.contains('stop');
-    if (running()) { await press(run); await until(() => !running(), 3000); }
-    // The source appears line by line, as if pasted by a quick typist.
-    await reveal(ed); await moveTo(ed, .2, .25);
-    const lines = code.split('\n'), per = Math.min(80, 1500 / lines.length);
-    for (let i = 1; i <= lines.length; i++) {
-      ed.value = lines.slice(0, i).join('\n');
-      ed.dispatchEvent(new Event('input', { bubbles: true }));
-      await sleep(per);
-    }
-    let started = false;
-    const seen = new MutationObserver(() => { if (running()) started = true; });   // a quick program is over between two looks
-    seen.observe(run, { attributes: true, attributeFilter: ['class'] });
-    await press(run);
-    const queue = Array.isArray(stdin) ? stdin.map(String) : [], began = Date.now();
-    let note = '';
-    for (;;) {
-      await wait(120);
-      if (Date.now() - began > 60_000) { note = ' Stopped after 60 seconds.'; if (running()) run.click(); break; }
-      if (!form.hidden) {
-        if (!queue.length) { note = ' The program asked for more input than was given, so it was stopped.'; run.click(); await until(() => !running(), 2500); break; }
-        await typeInto(line, queue.shift());
-        if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-        continue;
-      }
-      if (started && !running()) break;
-      if (!started && Date.now() - began > 900 && status.classList.contains('bad')) break;   // Python did not load
-    }
-    seen.disconnect();
-    return `Status: ${status.textContent.trim() || 'unknown'}.${note}\nConsole:\n${out.textContent.slice(-1100) || '(nothing printed)'}`;
+    const pc = poly();
+    if (!code.trim() && !pc.ed.value.trim()) return 'No code was given and the editor is empty.';
+    if (pc.running()) { await press(pc.run); await until(() => !pc.running(), 3000); }
+    if (code.trim()) await polyType(code);       // without code: run what the editor already holds
+    return polyWatch(Array.isArray(stdin) ? stdin.map(String) : [], () => press(pc.run));
+  },
+
+  async polycode_input({ text = '' }) {
+    await open(CARD.polycode);
+    if (poly().form.hidden) return 'The program is not waiting for input.';
+    return polyWatch([String(text)]);
+  },
+
+  async polycode_stop() {
+    await open(CARD.polycode);
+    const pc = poly();
+    if (!pc.running()) return `Nothing is running. Status: ${pc.status.textContent.trim() || 'unknown'}.`;
+    await press(pc.run); await until(() => !pc.running(), 3000);
+    return `Stopped. Status: ${pc.status.textContent.trim() || 'unknown'}.`;
   },
 
   async ionet_send({ message = '', encrypt = true }) {
     await open(CARD.ionet);
-    const input = $('#nx-msg'), box = $('#nx-enc'), step = $('#nx-step');
-    const done = () => step.textContent.startsWith('Delivered');
+    const input = $('#nx-msg'), box = $('#nx-enc');
     await typeInto(input, [...String(message)].slice(0, 14).join('') || 'hello');
     // Flipping the switch starts a new session and sends by itself.
     if (box.checked !== !!encrypt) await press($('.nx-sw'), .25, .5); else await press($('#nx-form button'));
-    await until(() => !done(), 600);
-    const ok = await until(done, 25_000);
-    const cells = sel => $$(sel + ' > i').map(i => i.textContent).join(' ');
-    const got = encrypt ? $$('#nx-de .xc').map(c => c.children[2].textContent).join('').replace(/␣/g, ' ') : $$('#nx-rx i').map(i => i.textContent).join('').replace(/␣/g, ' ');
-    return `${ok ? step.textContent : 'It did not finish in time.'} Sent "${input.value}". On the wire: ${cells('#nx-tx')}. ${encrypt ? `Both sides derived the same key (starts ${$('#nx-key b')?.textContent || '?'}). ` : ''}The receiver read "${got}".`;
+    return ionetDone();
+  },
+
+  async ionet_mode({ encrypt = true }) {
+    await open(CARD.ionet);
+    if ($('#nx-enc').checked === !!encrypt) return `The session is already ${encrypt ? 'encrypted' : 'plain'}.`;
+    await press($('.nx-sw'), .25, .5);           // a new session: the message in the field is sent again
+    return `Switched to ${encrypt ? 'an encrypted' : 'a plain'} session. ${await ionetDone()}`;
+  },
+
+  async ionet_reset() {
+    await open(CARD.ionet);
+    dispatchEvent(new CustomEvent('ionet:reset'));
+    await sleep(300);
+    return 'The session is forgotten. The next encrypted message starts with a new key exchange.';
+  },
+
+  async calculator_clear() {
+    await open(CARD.calculator);
+    await press($$('#calc button').find(b => b.textContent === 'C'));
+    return `Cleared. Display: ${$('#calc output').textContent}.`;
   },
 
   async calculator_press({ keys = '' }) {
@@ -294,6 +478,25 @@ const TOOLS = {
     return `The theme is ${theme} now.`;
   },
 
+  async hero_push({ path = 'sweep' }) {
+    const shape = PATHS[path];
+    if (!shape) return `There is no path "${path}". Use sweep, circle or zigzag.`;
+    await scrollToY(0);
+    if (reduce) return 'The visitor has asked for reduced motion, so the field stays still.';
+    const r = $('.hero').getBoundingClientRect(), to = k => { const [x, y] = shape(k, r.width, r.height); return [r.left + x, r.top + y]; };
+    await moveTo(spot(...to(0)));
+    await new Promise(done => {
+      const began = performance.now(), dur = 2600;
+      (function frame(now) {
+        const k = Math.min(1, Math.max(0, (now - began) / dur));
+        [gx, gy] = to(k); place();
+        if (k < 1) requestAnimationFrame(frame); else done();
+      })(began);
+    });
+    await wait(500);
+    return `Your cursor went through the pixel field (${path}); the dots stepped aside and are settling back.`;
+  },
+
   async hero_wave() {
     await scrollToY(0);
     if (reduce) return 'The visitor has asked for reduced motion, so the field stays still.';
@@ -311,7 +514,9 @@ export function callTool(name, args) {
     clearTimeout(restTimer);
     try {
       if (!TOOLS[name]) return `There is no tool "${name}".`;
-      return String(await TOOLS[name](args && typeof args === 'object' ? args : {})).slice(0, 1500);
+      const result = String(await TOOLS[name](args && typeof args === 'object' ? args : {})).slice(0, 1500);
+      if (DEMO.test(name)) await wait(600);
+      return result;
     } catch (err) {
       return `The tool failed: ${err && err.message || err}`;
     } finally { rest(); }

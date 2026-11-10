@@ -3,15 +3,17 @@
 // The model also has tools (the "site" MCP server): when it calls one, mcp.js carries it out
 // on this page and the result goes back, until the model answers in words.
 import { $ } from '../util.js';
-import { callTool } from './mcp.js';
+import { callTool, hurry } from './mcp.js';
 
 const msgs = $('#gc-msgs'), form = $('#gc-form'), input = $('#gc-in'), chips = $('#gc-chips');
 const quotaEl = $('#gc-quota'), modelEl = $('#gc-model'), mcpEl = $('#gc-mcp');
 const SUGGESTIONS = ['What does he build?', 'Run some Python'];
-const TOUR = '▶ Tour';
-const MAX_ROUNDS = 8;            // model calls per message; the server allows fewer and has the last word
+const GUIDE = '▶ Guide', STOP = '■ Stop';
+const MAX_ROUNDS = 8, GUIDE_ROUNDS = 26;   // model calls per message; the server allows fewer and has the last word
 const history = [];              // what the model sees: [{role, content, tool_calls?, tool_call_id?}]
 let busy = false, limit = 8, remaining = null, available = true;
+// The Guide button: the model presents the demos by itself, choosing the tools and the pauses.
+let guideText = 'Give me the guided tour.', guiding = false, stopping = false, abort = null, pending = null;
 
 function bubble(role, text = '') {
   const p = document.createElement('p');
@@ -37,7 +39,8 @@ function setChips(list) {
   chips.replaceChildren(...list.map(s => {
     const b = document.createElement('button');
     b.type = 'button'; b.textContent = s;
-    b.addEventListener('click', () => (s === TOUR ? tour() : send(s)));
+    if (s === GUIDE || s === STOP) b.className = 'main';
+    b.addEventListener('click', () => (s === GUIDE ? guide() : s === STOP ? stop() : send(s)));
     return b;
   }));
 }
@@ -47,7 +50,7 @@ function setQuota() {
   quotaEl.textContent = remaining > 0 ? `${remaining} of ${limit} messages left today` : `Daily limit reached (${limit} messages)`;
   quotaEl.classList.toggle('out', remaining <= 0);
   input.disabled = remaining <= 0;
-  if (remaining <= 0) { input.placeholder = 'Back tomorrow'; setChips([TOUR]); }
+  if (remaining <= 0) { input.placeholder = 'Back tomorrow'; if (!busy) setChips([GUIDE]); }
 }
 function prettyModel(id) {       // "claude-haiku-5.5" -> "Claude Haiku 5.5"
   return id.split('-').map(w => /^\d/.test(w) ? w : w[0].toUpperCase() + w.slice(1)).join(' ');
@@ -67,22 +70,49 @@ async function readEvents(body, on) {
   }
 }
 
-async function send(text) {
+/** Ends a running guide: the answer in flight is dropped, a pause is cut short, the rest is skipped. */
+function stop() {
+  if (!guiding || stopping) return;
+  stopping = true; hurry();
+  if (abort) abort.abort();
+}
+addEventListener('chat:released', stop);       // Esc, or a click outside the chat and the demos
+
+function guide() {
+  if (busy) return;
+  // No model to present (no key, no server, no messages left): the scripted tour does it.
+  if (!available || remaining === 0) return tour();
+  return send(guideText, true);
+}
+
+async function send(text, asGuide = false) {
   text = text.trim();
-  if (!text || busy) return;
-  busy = true; chips.replaceChildren();
-  bubble('me', text);
-  // Old turns are dropped whole, so a tool call never loses its result.
-  while (history.length > 12) { history.shift(); while (history.length && history[0].role !== 'user') history.shift(); }
+  if (!text) return;
+  if (busy) {                    // a message typed during a guide ends the guide and is answered next
+    if (guiding) { pending = text; stop(); }
+    return;
+  }
+  busy = true; guiding = asGuide; stopping = false;
+  if (asGuide) {
+    setChips([STOP]);
+    bubble('ai note', 'Guide: I present the demos myself, live. Stop, Esc or a message of yours ends it.');
+    history.length = 0;          // a guide is one long turn and starts clean
+  } else {
+    chips.replaceChildren();
+    bubble('me', text);
+    // Old turns are dropped whole, so a tool call never loses its result.
+    while (history.length > 40) { history.shift(); while (history.length && history[0].role !== 'user') history.shift(); }
+  }
   const mark = history.length;
   history.push({ role: 'user', content: text });
-  let reply = null, answer = '', turn = null;
+  let reply = null, answer = '', turn = null, spoke = false;
   try {
-    for (let round = 0; round < MAX_ROUNDS; round++) {
+    for (let round = 0, rounds = asGuide ? GUIDE_ROUNDS : MAX_ROUNDS; round < rounds && !stopping; round++) {
       reply = typing(); answer = '';
+      abort = new AbortController();
       const res = await fetch('api/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, turn }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: abort.signal,
+        body: JSON.stringify({ messages: history, turn, guide: asGuide }),
       });
       if (!res.ok || !res.body) throw Object.assign(new Error('chat'), { status: res.status });
       const left = res.headers.get('X-Chat-Remaining');
@@ -99,6 +129,7 @@ async function send(text) {
         else if (ev.type === 'done') { finished = true; turn = ev.turn || null; }
       });
       if (!finished) throw Object.assign(new Error('dropped'), { status: 0 });
+      spoke = true;
       if (!calls.length) {
         if (!answer.trim()) throw Object.assign(new Error('empty'), { status: 502 });
         history.push({ role: 'assistant', content: answer });
@@ -108,34 +139,50 @@ async function send(text) {
       reply = null;
       history.push({ role: 'assistant', content: answer, tool_calls: calls });
       for (const call of calls) {
+        if (stopping) { history.push({ role: 'tool', tool_call_id: call.id, content: 'Not done: the visitor stopped the guide.' }); continue; }
         const row = toolRow(call.name);
         let args = {};
         try { args = JSON.parse(call.arguments); } catch { /* the tool will say what it is missing */ }
+        if (call.name === 'wait') { row.classList.add('wait'); row.style.setProperty('--wait', `${Math.min(8, Math.max(.5, +args.seconds || 2))}s`); }
         const result = await callTool(call.name, args);
         row.classList.add('done');
         history.push({ role: 'tool', tool_call_id: call.id, content: result });
       }
-      if (!turn) throw Object.assign(new Error('turn'), { status: 403 });
+      if (!turn && !stopping) throw Object.assign(new Error('turn'), { status: 403 });
     }
   } catch (err) {
-    history.length = mark;       // the model never saw this turn through
-    if (!reply || !reply.isConnected) reply = bubble('ai note');
-    reply.className = 'ai note';
-    if (err.status === 429) { remaining = 0; setQuota(); reply.textContent = `That was the last one: ${limit} messages a day. The limit resets at midnight UTC.`; }
-    else if (err.status === 503) reply.textContent = 'No API key is set on this server yet, so there is no model to answer.';
-    else if (err.status === 400) reply.textContent = 'That message is too long. Try a shorter one.';
-    else if (err.status === 403) reply.textContent = 'That took too long to finish. Ask again and I will pick it up.';
-    else if (answer) reply.textContent = answer + ' …the connection dropped.';
-    else reply.textContent = 'The chat server is not reachable right now.';
+    if (reply && reply.isConnected && !(stopping && answer)) reply.remove();
+    if (!stopping) {
+      history.length = mark;     // the model never saw this turn through
+      reply = bubble('ai note');
+      if (err.status === 429) { remaining = 0; reply.textContent = `That was the last one: ${limit} messages a day. The limit resets at midnight UTC.`; }
+      else if (err.status === 503) reply.textContent = 'No API key is set on this server yet, so there is no model to answer.';
+      else if (err.status === 400) reply.textContent = 'That message is too long. Try a shorter one.';
+      else if (err.status === 403) reply.textContent = 'That took too long to finish. Ask again and I will pick it up.';
+      else if (answer) reply.textContent = answer + ' …the connection dropped.';
+      else reply.textContent = 'The chat server is not reachable right now.';
+    }
   }
-  busy = false;
+  abort = null;
+  const fallBack = asGuide && !spoke && !stopping;       // the model never got going: the script presents instead
+  if (stopping) {
+    // What was said and done stays in the history, so the model knows where the guide ended.
+    if (history.length === mark + 1) history.length = mark;
+    else if (history[history.length - 1].role !== 'assistant') history.push({ role: 'assistant', content: '(The visitor stopped the guide here.)' });
+    bubble('ai note', 'Guide stopped.');
+  }
+  busy = guiding = stopping = false;
+  setQuota();
+  if (fallBack) return tour();
+  if (asGuide || !chips.children.length) setChips(available && remaining !== 0 ? [...SUGGESTIONS, GUIDE] : [GUIDE]);
+  if (pending) { const next = pending; pending = null; send(next); }
 }
 
 /** The same tools, driven by a script instead of the model: works offline and spends no message. */
 async function tour() {
   if (busy) return;
   busy = true; chips.replaceChildren();
-  bubble('ai note', 'A scripted tour: the same MCP tools, no model call, no message spent.');
+  bubble('ai note', 'A scripted tour, because the model is not available right now: the same MCP tools, no message spent.');
   const act = async (say, name, args) => {
     bubble('ai', say);
     const row = toolRow(name), result = await callTool(name, args);
@@ -153,22 +200,23 @@ async function tour() {
   const shown = /Display: ([^\s.(]+)/.exec(calc);
   bubble('ai', `${shown ? `6 × 7 = ${shown[1]}. ` : ''}That is the tour. Press Esc and I go back to my card.`);
   busy = false;
-  setChips(available && remaining !== 0 ? SUGGESTIONS : []);
+  setChips(available && remaining !== 0 ? [...SUGGESTIONS, GUIDE] : [GUIDE]);
 }
 
 form.addEventListener('submit', e => { e.preventDefault(); const v = input.value; input.value = ''; send(v); });
-setChips([...SUGGESTIONS, TOUR]);
+setChips([...SUGGESTIONS, GUIDE]);
 
-bubble('ai', 'Hi! Ask me about lixelv: what he builds, his stack, or how to reach him.\nI am also wired into this page over MCP: I can run the other demos for you, take you to any section, and pin myself to the side while you watch.');
+bubble('ai', 'Hi! Ask me about lixelv: what he builds, his stack, or how to reach him.\nI am also wired into this page over MCP: I can run the other demos for you, take you to any section, and pin myself to the side while you watch. Press Guide and I will show you around.');
 
 // Model name and today's quota come from the server; without it the widget says so.
 fetch('api/chat/quota').then(r => r.ok ? r.json() : Promise.reject()).then(q => {
   limit = q.limit; remaining = q.remaining;
   modelEl.textContent = prettyModel(q.model) + ' ▾';
-  if (q.tools) mcpEl.append(` · ${q.tools.length}`);
-  if (!q.configured) { available = false; setChips([TOUR]); bubble('ai note', 'No API key is set on this server yet, so answers are off for now. The tour still works: it runs the tools without the model.'); }
+  if (q.tools) mcpEl.append(` (${q.tools.length})`);
+  if (q.guide) guideText = q.guide;
+  if (!q.configured) { available = false; setChips([GUIDE]); bubble('ai note', 'No API key is set on this server yet, so answers are off for now. Guide still works: it runs the tools from a script, without the model.'); }
   setQuota();
 }).catch(() => {
-  available = false; setChips([TOUR]);
-  bubble('ai note', 'This copy of the site runs without its server, so the chat is offline. The tour still works: it runs the tools without the model.');
+  available = false; setChips([GUIDE]);
+  bubble('ai note', 'This copy of the site runs without its server, so the chat is offline. Guide still works: it runs the tools from a script, without the model.');
 });

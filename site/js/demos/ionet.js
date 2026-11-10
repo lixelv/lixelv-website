@@ -35,6 +35,28 @@ async function morph(el, items, cls, live, gap = 55) {
   for (let i = 0; i < items.length && live(); i++) { flip(el.children[i], items[i], cls); await sleep(gap); }
   await sleep(240);
 }
+const bits = b => b.toString(2).padStart(8, '0');
+/** XOR written the way a sum is written at school: one byte over the other, a rule, the result
+ *  under it, filled in from the right. The cells above hold every byte of the message; each one
+ *  turns into its result when its sum is done. */
+async function columns(el, top, key, res, from, to, live) {
+  el.innerHTML = cellsHTML(from.labels, from.cls) + '<div class="xs" aria-hidden="true">'
+    + ['', '⊕', ''].map((op, r) => `${r === 2 ? '<hr>' : ''}<span class="xo">${op}</span><span class="xb"></span><span class="xh"></span>`).join('') + '</div>';
+  const cells = [...el.children].slice(0, top.length), row = $$('.xb', el), side = $$('.xh', el);
+  const per = Math.max(12, Math.min(40, 1500 / (top.length * 8)));       // a long message is summed faster
+  await sleep(420);
+  for (let i = 0; i < top.length && live(); i++) {
+    cells[i].classList.add('cur');
+    row[0].textContent = bits(top[i]); side[0].textContent = hex(top[i]);
+    row[1].textContent = bits(key[i]); side[1].textContent = hex(key[i]);
+    const sum = bits(res[i]); side[2].textContent = '';
+    for (let b = 7; b >= 0 && live(); b--) { row[2].textContent = sum.slice(b).padStart(8, ' '); await sleep(per); }
+    side[2].textContent = hex(res[i]);
+    await sleep(per * 3);
+    cells[i].classList.remove('cur'); flip(cells[i], to.labels[i], to.cls);
+  }
+  await sleep(600);
+}
 function packet(cls, back = false) {
   if (reduce) return;
   const p = document.createElement('i');
@@ -43,14 +65,14 @@ function packet(cls, back = false) {
   wire.append(p);
 }
 function showKey() {
-  keyEl.innerHTML = session ? `<span>same</span><span>key</span><b>${hex(session.client[0])}${hex(session.client[1])}</b>` : '<span>ECDH</span><b>· ·</b>';
+  keyEl.innerHTML = session ? `<span>same</span><span>key</span><b>${hex(session.client[0])}${hex(session.client[1])}</b>` : '<span>ECDH</span><b>—</b>';
   keyEl.classList.toggle('set', !!session);
 }
 
 async function handshake(live) {
   const a = keyPair(), b = keyPair();
   active('wire');
-  step.textContent = '1 · Handshake: the two sides swap public keys (ECDH)';
+  step.textContent = '1. Handshake: the two sides swap public keys (ECDH)';
   setNote('en', `public key ${short(a.public)}`); setNote('de', `public key ${short(b.public)}`);
   for (let i = 0; i < 4; i++) { packet('key'); await sleep(70); }
   await sleep(TRAVEL); if (!live()) return;
@@ -60,7 +82,7 @@ async function handshake(live) {
   session = { client: x25519(a.secret, b.public), server: x25519(b.secret, a.public), n: 0 };
   showKey();
   setNote('en', `shared key ${short(session.client)}`, 'good'); setNote('de', `shared key ${short(session.server)}`, 'good');
-  step.textContent = '2 · Both sides now hold the same key. It never crossed the wire.';
+  step.textContent = '2. Both sides now hold the same key. It never crossed the wire.';
   await sleep(1100);
 }
 
@@ -82,42 +104,33 @@ async function send() {
     setNote('de', `shared key ${short(session.server)}`, 'good');
     // --- Encryptor: text -> bytes -> XOR with the keystream
     active('enc');
-    step.textContent = 'Encryptor · your text in, ciphertext out: each byte is XORed with the keystream';
-    // One column per byte: your text on top, the keystream byte under it, the result at the bottom.
-    const top = chars.length === bytes.length ? chars : [...bytes].map(hex);
-    box.en.innerHTML = top.map(t => `<span class="xc"><i class="ch">${esc(t)}</i><i class="k hid"></i><i class="c hid"></i></span>`).join('');
-    setNote('en', 'your text');
-    await sleep(520); if (!live()) return;
+    step.textContent = 'Encryptor: every byte of your text is XORed with a byte of the keystream';
     const nonce = new Uint8Array(12); new DataView(nonce.buffer).setUint32(0, session.n++, true);
     stream = chacha20Stream(session.client, nonce, 0, bytes.length);
     payload = xor(bytes, stream);
-    const cols = [...box.en.children];
-    setNote('en', 'each byte ⊕ a keystream byte');
-    for (let i = 0; i < cols.length && live(); i++) { const k = cols[i].children[1]; k.textContent = hex(stream[i]); k.classList.remove('hid'); await sleep(60); }
-    await sleep(280); if (!live()) return;
-    for (let i = 0; i < cols.length && live(); i++) { const c = cols[i].children[2]; c.textContent = hex(payload[i]); c.classList.remove('hid'); await sleep(80); }
-    await sleep(700); if (!live()) return;
+    setNote('en', 'column by column, no carry');
+    await columns(box.en, bytes, stream, payload, { labels: chars.length === bytes.length ? chars : [...bytes].map(hex), cls: 'ch' }, { labels: [...payload].map(hex), cls: 'c' }, live);
+    if (!live()) return;
   }
 
   // --- Transmitter: frame = 4-byte length + payload
   active('tx');
   const lenCell = `<i class="len">len ${bytes.length}</i>`;
   if (secure) {
-    step.textContent = 'Transmitter · the bytes leave encrypted: length, then ciphertext';
+    step.textContent = 'Transmitter: the bytes leave encrypted, the length first, then the ciphertext';
     box.tx.innerHTML = lenCell + cellsHTML([...payload].map(hex), 'c');
   } else {
-    step.textContent = 'Transmitter · the text becomes bytes and goes out as it is';
+    step.textContent = 'Transmitter: the text becomes bytes and goes out as it is';
     box.tx.innerHTML = cellsHTML(chars, 'ch'); setNote('tx', 'text');
     await sleep(480); if (!live()) return;
     await morph(box.tx, [...bytes].map(hex), 'p', live); if (!live()) return;
     box.tx.insertAdjacentHTML('afterbegin', lenCell);
   }
-  setNote('tx', `${4 + bytes.length} bytes to the socket`);
   await sleep(420); if (!live()) return;
 
   // --- The wire: one packet per byte
   active('wire');
-  step.textContent = secure ? 'On the wire · only ciphertext travels' : 'On the wire · the bytes travel in the clear';
+  step.textContent = secure ? 'On the wire: only ciphertext travels' : 'On the wire: the bytes travel in the clear';
   for (let i = 0; i < payload.length && live(); i++) {
     packet(secure ? 'c' : 'p');
     setTimeout(() => {
@@ -131,27 +144,21 @@ async function send() {
   active('rx'); setNote('rx', `${4 + bytes.length} bytes received`);
   await sleep(420); if (!live()) return;
   if (!secure) {
-    step.textContent = 'Receiver · bytes back to text';
+    step.textContent = 'Receiver: bytes back to text';
     await morph(box.rx, chars, 'ch', live); if (!live()) return;
     setNote('rx', 'text', 'good');
     step.textContent = 'Delivered. Plain session: input and output are connected directly.';
   } else {
     active('dec');
-    step.textContent = 'Decryptor · the same keystream turns the noise back into bytes, then text';
-    // Mirror of the encryptor: ciphertext on top, the same keystream byte under it, your text at the bottom.
-    box.de.innerHTML = [...payload].map(b => `<span class="xc"><i class="c">${hex(b)}</i><i class="k hid"></i><i class="ch hid"></i></span>`).join('');
-    setNote('de', 'ciphertext');
-    await sleep(480); if (!live()) return;
+    step.textContent = 'Decryptor: the same keystream turns the noise back into your text';
+    // Mirror of the encryptor: the ciphertext over the same keystream gives your text back.
     const nonce = new Uint8Array(12); new DataView(nonce.buffer).setUint32(0, session.n - 1, true);
     const ks = chacha20Stream(session.server, nonce, 0, payload.length);   // the server's own key, same keystream
     const plain = xor(payload, ks);
     const got = new TextDecoder().decode(plain);
     const out = [...got].length === plain.length ? [...got].map(glyph) : [...plain].map(hex);
-    const cols = [...box.de.children];
-    setNote('de', 'each byte ⊕ the same keystream byte');
-    for (let i = 0; i < cols.length && live(); i++) { const k = cols[i].children[1]; k.textContent = hex(ks[i]); k.classList.remove('hid'); await sleep(60); }
-    await sleep(280); if (!live()) return;
-    for (let i = 0; i < cols.length && live(); i++) { const c = cols[i].children[2]; c.textContent = out[i]; c.classList.remove('hid'); await sleep(80); }
+    setNote('de', 'the same keystream, the same sum');
+    await columns(box.de, payload, ks, plain, { labels: [...payload].map(hex), cls: 'c' }, { labels: out, cls: 'ch' }, live);
     if (!live()) return;
     step.textContent = 'Delivered. Only the two ends ever saw the text.';
   }
@@ -160,6 +167,13 @@ async function send() {
 
 form.addEventListener('submit', e => { e.preventDefault(); send(); });
 encBox.addEventListener('change', () => { session = null; send(); });   // a new session negotiates a new key
+// The chat's tool `ionet_reset`: forget the session, so the next message shows the handshake again.
+addEventListener('ionet:reset', () => {
+  run++; session = null;
+  Object.values(box).forEach(el => (el.innerHTML = ''));
+  Object.keys(note).forEach(k => setNote(k, ''));
+  active(null); showKey(); step.textContent = 'Type a message and press Send';
+});
 
 root.classList.toggle('plain', !encBox.checked);
 showKey();

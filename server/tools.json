@@ -2,8 +2,16 @@
   {
     "type": "function",
     "function": {
-      "name": "go_to",
-      "description": "Scroll the visitor's page to a section or to one of the project cards.",
+      "name": "get_page_state",
+      "description": "Look at the visitor's page without changing it. Returns: which section or project card is in the middle of the screen, how far the page is scrolled, the theme, whether the chat is pinned, whether the screen is narrow (phone layout), and the current state of every demo (ControlHub computers and selection, Polycode status, Ionet mode and last step, Calculator display). Use it when you need to know where the visitor is or what a demo shows before acting.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "read_section",
+      "description": "Read the text of a section or of a project card's description, exactly as the visitor sees it. Does not scroll or change anything. Returns up to 1300 characters. Use it to quote or describe the page accurately.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -19,8 +27,39 @@
   {
     "type": "function",
     "function": {
+      "name": "go_to",
+      "description": "Scroll the visitor's page smoothly to a section (top, about, stack, work, path, contact) or to one of the five project cards (controlhub, polycode, glasschat, ionet, calculator). Returns when the scroll has finished. The demo tools bring their own card on screen, so you do not need go_to before them.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": ["top", "about", "stack", "work", "controlhub", "polycode", "glasschat", "ionet", "calculator", "path", "contact"]
+          }
+        },
+        "required": ["target"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "scroll_by",
+      "description": "Scroll the page by a part of the screen height: positive is down, negative is up. Returns how far it moved and what is in view afterwards. Use go_to when you know the section you want.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "screens": { "type": "number", "minimum": -3, "maximum": 3, "description": "Screen heights to scroll, for example 0.5 or -1." }
+        },
+        "required": ["screens"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "pin_chat",
-      "description": "Pin this chat window to the side of the screen so the visitor can keep talking to you while looking at the other demos, or put it back in its card. The demo tools pin it on their own; the visitor can unpin with Esc.",
+      "description": "Pin this chat window to the left side of the screen (pinned: true) so the visitor keeps seeing you while the demos play on the right, or put it back in its card (pinned: false). While pinned, the text column is dimmed and blurred, and the chat hides when the visitor scrolls away from the demos. The demo tools pin the chat on their own. The visitor can unpin with Esc or a click outside.",
       "parameters": {
         "type": "object",
         "properties": { "pinned": { "type": "boolean" } },
@@ -31,8 +70,64 @@
   {
     "type": "function",
     "function": {
-      "name": "controlhub_run",
-      "description": "Operate the ControlHub demo: choose a script, choose computers, press Run. Returns what each computer reported. Six demo computers: PC-01..PC-06. 'awake' targets offline computers, every other script needs online ones.",
+      "name": "unpin_chat",
+      "description": "Put the chat window back in its card. The same as pin_chat with pinned: false. Use it when a presentation is over.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "wait",
+      "description": "Do nothing for a few seconds so the visitor can read what you wrote or watch the result of your last action. Use it between steps of a presentation: about 1.5 seconds after a click, 3 to 5 seconds after an animation or a result that has to be read. The visitor can cut it short. Returns how long it waited.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "seconds": { "type": "number", "minimum": 0.5, "maximum": 8 },
+          "reason": { "type": "string", "description": "A few words on what the visitor is given time for." }
+        },
+        "required": ["seconds"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "highlight",
+      "description": "Point at a part of the page without pressing anything: your cursor moves there and an outline pulses around it for the given time. The card that holds it is brought on screen first. Use it to show where to look before or after an action. Targets: hero, theme_button; controlhub.scripts, controlhub.computers, controlhub.run, controlhub.log; polycode.editor, polycode.run, polycode.console; glasschat.window; ionet.input, ionet.encryptor, ionet.transmitter, ionet.wire, ionet.receiver, ionet.decryptor, ionet.key; calculator.display, calculator.keys.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": ["hero", "theme_button", "controlhub.scripts", "controlhub.computers", "controlhub.run", "controlhub.log", "polycode.editor", "polycode.run", "polycode.console", "glasschat.window", "ionet.input", "ionet.encryptor", "ionet.transmitter", "ionet.wire", "ionet.receiver", "ionet.decryptor", "ionet.key", "calculator.display", "calculator.keys"]
+          },
+          "seconds": { "type": "number", "minimum": 0.5, "maximum": 6, "description": "How long the outline stays. 2 by default." }
+        },
+        "required": ["target"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "caption",
+      "description": "Show a short label next to your cursor for a few seconds, on top of the page. Use it for a remark that belongs to the spot you are pointing at, for example right after highlight. Longer explanations go in your chat message instead.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "description": "At most 90 characters." },
+          "seconds": { "type": "number", "minimum": 1, "maximum": 8, "description": "3 by default." }
+        },
+        "required": ["text"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "controlhub_select",
+      "description": "ControlHub demo: choose a script and, optionally, which computers it targets, without running it. Your cursor clicks the script and toggles the computer tiles. Returns the label of the Run button and the state of the six computers (PC-01 to PC-06). 'awake' targets offline computers; every other script needs online ones.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -50,18 +145,30 @@
   {
     "type": "function",
     "function": {
-      "name": "polycode_run",
-      "description": "Type a short Python program into the Polycode demo editor and run it. It runs in the visitor's own browser (Pyodide). Returns the console output. The first run downloads Python and can take several seconds.",
+      "name": "controlhub_run",
+      "description": "ControlHub demo: choose a script, choose computers, press Run, and wait for every computer to report. Returns the new log lines and the state of the six computers. Scripts: run_program opens Notepad, fullscreen maximises it, cmd runs a shell command, kill_process closes Notepad, shutdown turns computers off, awake turns offline computers on. 'awake' targets offline computers; every other script needs online ones. Takes 2 to 9 seconds.",
       "parameters": {
         "type": "object",
         "properties": {
-          "code": { "type": "string", "description": "Python source, at most 1200 characters. Keep it short and quick to finish." },
-          "stdin": {
+          "script": { "type": "string", "enum": ["run_program", "fullscreen", "cmd", "kill_process", "shutdown", "awake"] },
+          "computers": {
             "type": "array",
-            "description": "Lines to type when the program calls input(), in order.",
-            "items": { "type": "string" }
+            "description": "Numbers of the computers to select, 1 to 6. Leave out to keep the current selection.",
+            "items": { "type": "integer", "minimum": 1, "maximum": 6 }
           }
         },
+        "required": ["script"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "polycode_set_code",
+      "description": "Polycode demo: type a Python program into the editor without running it. Use it to show the code first and run it in a later step with polycode_run (without code). Returns the number of lines.",
+      "parameters": {
+        "type": "object",
+        "properties": { "code": { "type": "string", "description": "Python source. No length limit." } },
         "required": ["code"]
       }
     }
@@ -69,8 +176,46 @@
   {
     "type": "function",
     "function": {
+      "name": "polycode_run",
+      "description": "Polycode demo: type a Python program into the editor and press Run. It runs in the visitor's own browser (Pyodide, real CPython). Leave code out to run what the editor already holds. Returns the status line and the end of the console output. If the program calls input() and stdin has no line left, the tool returns while the program waits: answer with polycode_input or end it with polycode_stop. A program that runs longer than 60 seconds is stopped. The first run downloads Python and can take several seconds.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "description": "Python source. No length limit, but keep programs quick to finish." },
+          "stdin": {
+            "type": "array",
+            "description": "Lines to type when the program calls input(), in order.",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "polycode_input",
+      "description": "Polycode demo: type one line into the console for a program that is waiting at input(), and follow the program until it ends or asks again. Returns the status and the end of the console output.",
+      "parameters": {
+        "type": "object",
+        "properties": { "text": { "type": "string" } },
+        "required": ["text"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "polycode_stop",
+      "description": "Polycode demo: stop the running program (presses the Stop button). Returns the status.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "ionet_send",
-      "description": "Send a message through the Ionet demo pipeline, encrypted (X25519 + ChaCha20, computed for real) or plain. Returns the bytes that went over the wire.",
+      "description": "Ionet demo: type a message and send it through the pipeline, and wait until it is delivered. Encrypted: an X25519 key exchange (first message of a session), then the Encryptor XORs each byte with a ChaCha20 keystream byte, shown as a column sum in binary; the Transmitter sends length and ciphertext; the Receiver and Decryptor reverse it. Plain: the bytes travel in the clear. Everything is computed for real. Returns the bytes on the wire and what the receiver read. Takes 5 to 15 seconds.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -84,8 +229,28 @@
   {
     "type": "function",
     "function": {
+      "name": "ionet_mode",
+      "description": "Ionet demo: flip the Encrypt switch. That starts a new session and sends the message in the field again, so the visitor can compare the wire with and without encryption. Returns the same report as ionet_send.",
+      "parameters": {
+        "type": "object",
+        "properties": { "encrypt": { "type": "boolean" } },
+        "required": ["encrypt"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ionet_reset",
+      "description": "Ionet demo: forget the current session and clear the pipeline. The next encrypted message starts with a new key exchange, so the handshake can be shown again.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "calculator_press",
-      "description": "Press keys on the Calculator demo, one after another. Returns what the display shows afterwards.",
+      "description": "Calculator demo: press keys one after another with your cursor. Returns what the display shows afterwards.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -98,8 +263,16 @@
   {
     "type": "function",
     "function": {
+      "name": "calculator_clear",
+      "description": "Calculator demo: press C. Returns the display.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "set_theme",
-      "description": "Switch the site's colour theme.",
+      "description": "Switch the whole site between its light and dark colour themes. The visitor sees the change at once.",
       "parameters": {
         "type": "object",
         "properties": { "theme": { "type": "string", "enum": ["light", "dark"] } },
@@ -111,8 +284,20 @@
     "type": "function",
     "function": {
       "name": "hero_wave",
-      "description": "Scroll to the top of the page and send a burst of waves through the pixel field that draws the name.",
+      "description": "Scroll to the top of the page and send a burst of four rings through the pixel field that draws the name. Takes about 2 seconds.",
       "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "hero_push",
+      "description": "Scroll to the top of the page and move your cursor through the pixel field along a path, so the visitor sees the dots step aside and spring back. Takes about 4 seconds.",
+      "parameters": {
+        "type": "object",
+        "properties": { "path": { "type": "string", "enum": ["sweep", "circle", "zigzag"] } },
+        "required": ["path"]
+      }
     }
   }
 ]

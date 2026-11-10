@@ -177,13 +177,14 @@
 .gc-msgs .tool i { width: 8px; height: 8px; flex: none; border-radius: 50%; border: 1.5px solid var(--accent); border-right-color: transparent; animation: gc-spin .7s linear infinite; }
 .gc-msgs .tool.done i { animation: none; border: 0; width: 6px; height: 6px; margin: 0 1px; background: var(--accent); }
 .gc-msgs .tool b { font-weight: 500; color: var(--fg); }
-.gc-msgs .tool b::after { content: " ·"; color: var(--muted); }
+.gc-msgs .tool b::after { content: " /"; color: var(--muted); }
 @keyframes gc-spin { to { transform: rotate(360deg); } }
 .gc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .gc-chips button {
   font: inherit; font-size: 11.5px; padding: 4px 10px; border-radius: 99px; cursor: pointer; color: var(--fg);
   border: 1px solid rgba(255, 255, 255, .22); background: color-mix(in srgb, var(--fg) 8%, transparent); transition: background-color .2s;
 }
+.gc-chips button.main { border-color: var(--accent); color: var(--accent); }
 .gc-chips button:hover { background: color-mix(in srgb, var(--fg) 18%, transparent); }
 .gc-input {
   display: flex; align-items: center; gap: 8px; padding: 5px 5px 5px 14px; border-radius: 99px;
@@ -254,6 +255,19 @@
 }
 @keyframes mcp-ring { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
 .mcp-hit { outline: 2px solid var(--accent) !important; outline-offset: 2px; }
+.mcp-spot { outline: 2px solid var(--accent) !important; outline-offset: 4px; animation: mcp-spot 1.1s ease-in-out infinite; }
+@keyframes mcp-spot { 50% { outline-offset: 8px; outline-color: color-mix(in srgb, var(--accent) 45%, transparent); } }
+.mcp-cursor em {
+  position: absolute; left: 16px; top: 44px; width: max-content; max-width: 240px; padding: 6px 9px; border-radius: 8px;
+  font: 500 12px/1.35 var(--sans); font-style: normal; background: var(--fg); color: var(--bg);
+  opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .2s;
+}
+.mcp-cursor.say em { opacity: 1; transform: none; }
+.gc-msgs .tool.wait { position: relative; }
+.gc-msgs .tool.wait::after { content: ""; position: absolute; left: 0; bottom: -2px; height: 1px; width: 100%; background: var(--accent); transform-origin: 0 50%; animation: gc-wait var(--wait, 2s) linear forwards; }
+.gc-msgs .tool.wait.done::after { display: none; }
+@keyframes gc-wait { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .mcp-spot { animation: none; } }
 
 /* ---------- Ionet: a message through the pipeline ---------- */
 .nx { display: grid; gap: 10px; font: 400 12px/1.5 var(--mono); }
@@ -290,9 +304,14 @@
 .nx-cells i.p { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
 .nx-cells i.ch { background: none; box-shadow: inset 0 0 0 1px var(--line); }
 .nx-cells i.len { padding: 0 6px; background: none; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
-.nx-cells .xc { display: grid; gap: 2px; justify-items: stretch; }
-.nx-cells i.k { height: 15px; background: none; color: var(--muted); font-size: 9.5px; }
-.nx-cells i.hid { visibility: hidden; }
+.nx-cells i.cur { box-shadow: inset 0 0 0 1px var(--accent); }
+/* XOR as a school sum: byte over byte, a rule, the result under it */
+.nx-cells .xs { flex: 1 1 100%; display: grid; grid-template-columns: 1em auto 1fr; column-gap: 7px; margin-top: 6px; font-size: 11px; line-height: 15px; }
+.xs .xo { color: var(--accent); text-align: center; }
+.xs .xb { white-space: pre; letter-spacing: .16em; min-height: 15px; }
+.xs .xh { color: var(--muted); }
+.xs hr { grid-column: 1 / -1; justify-self: start; width: calc(1em + 7px + 8ch + 8 * .16em); margin: 2px 0; border: 0; border-top: 1px solid var(--muted); }
+.xs hr ~ .xb { color: var(--accent); }
 .nx-cells i.flip { animation: nx-flip .24s ease-in-out; }
 @keyframes nx-pop { from { transform: scale(.4); opacity: 0; } }
 @keyframes nx-flip { 50% { transform: rotateX(90deg); } }

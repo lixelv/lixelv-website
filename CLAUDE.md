@@ -21,7 +21,9 @@ Without `OPENROUTER_API_KEY` the site works and the chat says it is off (the "To
 ## Chat tools ("site MCP")
 
 - The server only *describes* tools (`server/tools.json`) and passes tool calls through; it never runs them. The page runs them (`site/js/demos/mcp.js`, `TOOLS`) and posts the result back.
-- To add a tool: describe it in `tools.json`, add a function with the same name to `TOOLS` in `mcp.js`, and mention it in `server/prompt.md`.
+- To add a tool: describe it in `tools.json` (what it does, limits, what it returns), add a function with the same name to `TOOLS` in `mcp.js`, and mention it in `server/prompt.md`. Tools must not leave the page (no navigation, downloads or form posts).
+- **Guide** (the Guide button): one paid message, `guide: true`, and the fixed text `GUIDE_REQUEST`; the server then uses `prompt.md` + `guide.md` and the larger guide limits, and carries "this is a guide" inside the turn token. The model owns order and pacing (the `wait` tool); the page only enforces floors and caps. Without a model the button falls back to the scripted `tour()` in `glasschat.js`.
+- Test the chat without a key by pointing `OPENROUTER_URL` at a local stand-in that speaks the OpenAI streaming format.
 - `/api/chat` streams JSON lines (`text`, `tool_call`, `done`). Follow-ups after tool calls are free but need the single-use signed `turn` token from the previous answer (max 6 extra model calls per message, 4 min TTL). The token key is in memory, so a server restart ends turns in flight.
 - Tool results and everything from the page are untrusted input; `check_messages` validates the conversation on the server.
 - The GlassChat **card description** in `index.html` is deliberately untouched; the MCP blurb lives in the chat's welcome message (`glasschat.js`).
@@ -31,4 +33,5 @@ Without `OPENROUTER_API_KEY` the site works and the chat says it is off (the "To
 - Tokens (colours, spacing) are in `site/css/style.css`; demo styles in `demos.css`. Neutrals follow Vercel's Geist palette, accent is green; light and dark themes are both supported and must both be checked.
 - Honour `prefers-reduced-motion`: effects either do nothing or draw once.
 - Mobile (<= 820px): cards stack and are not sticky; the pinned chat becomes a bottom sheet.
+- Do not use the middle dot character as a separator anywhere in the UI or in prompts; use a comma, a colon or a slash.
 - Never put the API key, visitor addresses or user text in logs or URLs; the quota stores only a daily hash.

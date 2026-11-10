@@ -92,7 +92,7 @@ async function runOn(p, id) {
   await sleep(took);
   if (p.status === 'idle') p.status = 'online';       // a task wakes an idle machine
   const note = effect(p, tiles[i], id);
-  say(`<b>${p.name}</b> ${SCRIPTS[id].name} <span class="ok">✓</span> <span class="dim">${note} · ${(took / 1000).toFixed(1)}s</span>`);
+  say(`<b>${p.name}</b> ${SCRIPTS[id].name} <span class="ok">✓</span> <span class="dim">${note}, ${(took / 1000).toFixed(1)}s</span>`);
   if (id === 'shutdown') {                             // the screen collapses, then the client drops off
     p.dying = true; paint();
     await sleep(650);
@@ -106,7 +106,7 @@ async function boot(p, how) {
   p.booting = true; paint();
   await sleep(1300 + Math.random() * 900);
   p.booting = false; p.status = 'online'; paint();
-  say(`<b>${p.name}</b> <span class="ok">●</span> <span class="dim">${how} · client connected</span>`);
+  say(`<b>${p.name}</b> <span class="ok">●</span> <span class="dim">${how}, client connected</span>`);
 }
 
 async function wake(list) {
@@ -151,5 +151,5 @@ tabs.forEach(b => b.addEventListener('click', () => pick(b.dataset.s)));
 runBtn.addEventListener('click', run);
 
 pick('open');
-say('<span class="dim">5 clients connected · 1 offline</span>');
+say('<span class="dim">5 clients connected, 1 offline</span>');
 onceVisible($('#ch'), () => setTimeout(run, reduce ? 0 : 500), .5);

@@ -54,8 +54,18 @@ load_env(ROOT / ".env")
 
 OPENROUTER_URL = os.environ.get("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions").strip()
 API_KEY = os.environ.get("OPENROUTER_API_KEY", "").strip()
-MODEL = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5").strip()
-PROVIDER = os.environ.get("OPENROUTER_PROVIDER", "google-vertex/europe").strip()
+
+
+def env(name: str, default: str) -> str:
+    """A variable that is not set, or is set to nothing, means the default."""
+    return os.environ.get(name, "").strip() or default
+
+
+MODEL = env("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5")
+# The only provider OpenRouter may route to. "any" lets OpenRouter choose.
+PROVIDER = env("OPENROUTER_PROVIDER", "google-vertex/europe")
+if PROVIDER.lower() in {"any", "auto"}:
+    PROVIDER = ""
 DAILY_LIMIT = int(os.environ.get("CHAT_DAILY_LIMIT", "8"))
 # A ceiling for everyone together, so rotating addresses cannot run up the bill. 0 turns it off.
 GLOBAL_DAILY_LIMIT = int(os.environ.get("CHAT_GLOBAL_DAILY_LIMIT", "300"))
@@ -64,13 +74,22 @@ TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
 SITE_URL = os.environ.get("SITE_URL", "https://lixelv.com").strip()
 DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT / "data"))
 
+# Guides (the Guide button: the model presents the demos) are long turns on what may be an expensive
+# model, so they have their own ceiling for everyone together. 0 turns it off.
+GUIDE_GLOBAL_DAILY_LIMIT = int(env("GUIDE_GLOBAL_DAILY_LIMIT", "60"))
+
 MAX_USER_CHARS = 300
-MAX_HISTORY = 30  # tool calls and their results are messages too
-MAX_TOKENS = 1000
+MAX_HISTORY = 180  # tool calls and their results are messages too, and a guide is one long turn
+MAX_TOKENS = 2000
 MAX_TOOL_ROUNDS = 6  # model calls one visitor message may lead to after the first
 MAX_TOOL_CALLS = 4  # tool calls accepted from one model answer
+GUIDE_TOOL_ROUNDS = 24  # the same two limits for a guide
+GUIDE_TOOL_CALLS = 6
+GUIDE_SECONDS = 600  # a guide may go on for this long after it started
+GUIDE_REQUEST = "Give me the guided tour."  # what the Guide button sends as the visitor's message
 TURN_TTL = 240  # seconds a page has to run the tools and come back
 SYSTEM_PROMPT = (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8").strip()
+GUIDE_PROMPT = SYSTEM_PROMPT + "\n\n" + (Path(__file__).parent / "guide.md").read_text(encoding="utf-8").strip()
 TOOLS: list[dict] = json.loads((Path(__file__).parent / "tools.json").read_text(encoding="utf-8"))
 TOOL_NAMES = {tool["function"]["name"] for tool in TOOLS}
 
@@ -109,19 +128,22 @@ class Quota:
         with self.lock:
             return max(DAILY_LIMIT - self._count(day, self.who(address, day)), 0)
 
-    def take(self, address: str) -> int | None:
-        """Spends one message. Returns how many are left, or None when the limit is reached."""
+    def take(self, address: str, guide: bool = False) -> int | None:
+        """Spends one message. Returns how many are left, or None when a limit is reached."""
         day = self.today()
         who = self.who(address, day)
         with self.lock:
             self.db.execute("DELETE FROM usage WHERE day < ?", (day,))
             used = self._count(day, who)
             over_global = GLOBAL_DAILY_LIMIT and self._count(day, "*") >= GLOBAL_DAILY_LIMIT
-            if used >= DAILY_LIMIT or over_global:
+            over_guides = guide and GUIDE_GLOBAL_DAILY_LIMIT and self._count(day, "*guide") >= GUIDE_GLOBAL_DAILY_LIMIT
+            if used >= DAILY_LIMIT or over_global or over_guides:
                 self.db.commit()
                 return None
             self._add(day, who, 1)
             self._add(day, "*", 1)
+            if guide:
+                self._add(day, "*guide", 1)
             self.db.commit()
             return DAILY_LIMIT - used - 1
 
@@ -131,18 +153,20 @@ class Quota:
             return True
         day = self.today()
         with self.lock:
-            if self._count(day, "*tools") >= GLOBAL_DAILY_LIMIT * MAX_TOOL_ROUNDS:
+            if self._count(day, "*tools") >= GLOBAL_DAILY_LIMIT * MAX_TOOL_ROUNDS + GUIDE_GLOBAL_DAILY_LIMIT * GUIDE_TOOL_ROUNDS:
                 return False
             self._add(day, "*tools", 1)
             self.db.commit()
             return True
 
-    def refund(self, address: str) -> None:
+    def refund(self, address: str, guide: bool = False) -> None:
         """Gives the message back when the model never answered."""
         day = self.today()
         with self.lock:
             self._add(day, self.who(address, day), -1)
             self._add(day, "*", -1)
+            if guide:
+                self._add(day, "*guide", -1)
             self.db.commit()
 
 
@@ -161,21 +185,22 @@ class Turns:
     def _sign(self, who: str, body: str) -> str:
         return hmac.new(self.key, f"{who}.{body}".encode(), hashlib.sha256).hexdigest()[:40]
 
-    def issue(self, who: str, left: int) -> str:
-        body = f"{int(time.time()) + TURN_TTL}.{left}.{secrets.token_hex(6)}"
+    def issue(self, who: str, left: int, guide: bool, born: int) -> str:
+        """`born`: when the visitor's message arrived; a guide may not outlive GUIDE_SECONDS from then."""
+        body = f"{int(time.time()) + TURN_TTL}.{left}.{'g' if guide else 'c'}.{born}.{secrets.token_hex(6)}"
         return f"{body}.{self._sign(who, body)}"
 
-    def redeem(self, who: str, token: str) -> int | None:
-        """Returns how many model calls the token still allows, or None if it is not valid."""
+    def redeem(self, who: str, token: str) -> tuple[int, bool, int] | None:
+        """Returns (model calls the token still allows, is it a guide, when the turn began), or None if it is not valid."""
         try:
-            expires, left, nonce, signature = token.split(".")
-            expires_at, calls_left = int(expires), int(left)
+            expires, left, kind, born, nonce, signature = token.split(".")
+            expires_at, calls_left, born_at = int(expires), int(left), int(born)
         except ValueError:
             return None
         now = int(time.time())
-        if expires_at < now or calls_left < 1:
+        if expires_at < now or calls_left < 1 or kind not in ("g", "c") or born_at + GUIDE_SECONDS < now:
             return None
-        if not hmac.compare_digest(signature, self._sign(who, f"{expires}.{left}.{nonce}")):
+        if not hmac.compare_digest(signature, self._sign(who, f"{expires}.{left}.{kind}.{born}.{nonce}")):
             return None
         with self.lock:
             for old in [s for s, exp in self.used.items() if exp < now]:
@@ -183,7 +208,7 @@ class Turns:
             if signature in self.used:
                 return None
             self.used[signature] = expires_at
-        return calls_left
+        return calls_left, kind == "g", born_at
 
 
 quota = Quota(DATA_DIR / "chat.sqlite3")
@@ -254,19 +279,20 @@ def seconds_to_reset() -> int:
 class ToolCall(BaseModel):
     id: str = Field(min_length=1, max_length=120)
     name: str = Field(min_length=1, max_length=40)
-    arguments: str = Field(default="{}", max_length=4000)
+    arguments: str = Field(default="{}", max_length=60_000)  # a program for Polycode may be long
 
 
 class Message(BaseModel):
     role: Literal["user", "assistant", "tool"]
     content: str = Field(default="", max_length=4000)
-    tool_calls: list[ToolCall] | None = Field(default=None, max_length=MAX_TOOL_CALLS)
+    tool_calls: list[ToolCall] | None = Field(default=None, max_length=GUIDE_TOOL_CALLS)
     tool_call_id: str | None = Field(default=None, max_length=120)
 
 
 class ChatRequest(BaseModel):
-    messages: list[Message] = Field(min_length=1, max_length=60)
+    messages: list[Message] = Field(min_length=1, max_length=240)
     turn: str | None = Field(default=None, max_length=200)
+    guide: bool = False  # the Guide button: counts only on a new message, a follow-up carries it in its token
 
 
 def check_messages(messages: list[Message]) -> str | None:
@@ -313,6 +339,7 @@ async def chat_quota(request: Request):
             "remaining": quota.remaining(client_address(request)),
             "model": MODEL.split("/")[-1],
             "tools": sorted(TOOL_NAMES),
+            "guide": GUIDE_REQUEST,
         },
         headers={"Cache-Control": "no-store"},
     )
@@ -340,7 +367,9 @@ async def chat(body: ChatRequest, request: Request):
     if paid:
         if len(last.content) > MAX_USER_CHARS:
             return JSONResponse({"error": "too_long", "limit": MAX_USER_CHARS}, status_code=400)
-        left = quota.take(address)
+        guide = body.guide and last.content.strip() == GUIDE_REQUEST
+        born = int(time.time())
+        left = quota.take(address, guide)
         if left is None:
             reset = seconds_to_reset()
             return JSONResponse(
@@ -348,19 +377,20 @@ async def chat(body: ChatRequest, request: Request):
                 status_code=429,
                 headers={"Retry-After": str(reset)},
             )
-        rounds = MAX_TOOL_ROUNDS
+        rounds = GUIDE_TOOL_ROUNDS if guide else MAX_TOOL_ROUNDS
     else:
         allowed = turns.redeem(who, body.turn or "")
         if allowed is None or not quota.follow_up():
             return JSONResponse({"error": "turn_expired"}, status_code=403)
-        rounds = allowed - 1
+        rounds, guide, born = allowed[0] - 1, allowed[1], allowed[2]
         left = quota.remaining(address)
+    max_calls = GUIDE_TOOL_CALLS if guide else MAX_TOOL_CALLS
 
     payload: dict = {
         "model": MODEL,
         "stream": True,
         "max_tokens": MAX_TOKENS,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *(to_openai(m) for m in messages)],
+        "messages": [{"role": "system", "content": GUIDE_PROMPT if guide else SYSTEM_PROMPT}, *(to_openai(m) for m in messages)],
         # The tools stay in the request even on the last round (the conversation refers to them); the model is just told not to call any.
         "tools": TOOLS,
         "tool_choice": "auto" if rounds > 0 else "none",
@@ -370,7 +400,7 @@ async def chat(body: ChatRequest, request: Request):
 
     def refund() -> None:
         if paid:
-            quota.refund(address)
+            quota.refund(address, guide)
 
     assert http is not None
     upstream_request = http.build_request(
@@ -425,12 +455,12 @@ async def chat(body: ChatRequest, request: Request):
         finally:
             await upstream.aclose()
 
-        wanted = [c for _, c in sorted(calls.items()) if c["id"] and c["name"] in TOOL_NAMES][:MAX_TOOL_CALLS] if rounds > 0 else []
+        wanted = [c for _, c in sorted(calls.items()) if c["id"] and c["name"] in TOOL_NAMES][:max_calls] if rounds > 0 else []
         for call in wanted:
             yield event({"type": "tool_call", **call})
         done: dict = {"type": "done"}
         if wanted:
-            done["turn"] = turns.issue(who, rounds)
+            done["turn"] = turns.issue(who, rounds, guide, born)
         yield event(done)
 
     return StreamingResponse(

@@ -47,7 +47,7 @@ function print(text, cls = '') {
   const last = out.lastElementChild;
   if (last && last.className === cls) last.textContent += text;
   else { const s = document.createElement('span'); s.className = cls; s.textContent = text; out.append(s); }
-  if (out.textContent.length > 40_000) out.textContent = out.textContent.slice(-30_000);
+  if (out.textContent.length > 1_000_000) out.textContent = out.textContent.slice(-800_000);   // only so a runaway loop cannot freeze the tab
   con.scrollTop = con.scrollHeight;
 }
 function setStatus(text, cls = '') { status.textContent = text; status.className = 'pcx-status ' + cls; }
@@ -75,7 +75,7 @@ function load() {
   ready = new Promise((resolve, reject) => {
     worker.onmessage = ({ data: m }) => {
       if (m.type === 'status') setStatus(m.text, 'busy');
-      else if (m.type === 'ready') { python = m.python; if (state === 'loading') setState('ready'); setStatus(`Python ${python} · WebAssembly`, 'ok'); resolve(); }
+      else if (m.type === 'ready') { python = m.python; if (state === 'loading') setState('ready'); setStatus(`Python ${python}, WebAssembly`, 'ok'); resolve(); }
       else if (m.type === 'fatal') { fail(`Python did not load: ${m.text}`); reject(new Error(m.text)); }
       else if (m.type === 'out') print(m.text, m.stream === 'err' ? 'err' : '');
       else if (m.type === 'input_request') askInput(true);
@@ -130,7 +130,7 @@ function stop() {
     if (state !== 'running') return;
     worker?.terminate(); worker = null; ready = null;
     print('\nKeyboardInterrupt\n', 'err');
-    clearTimeout(timeout); setState('cold'); setStatus('Stopped · interpreter restarted', 'bad');
+    clearTimeout(timeout); setState('cold'); setStatus('Stopped, interpreter restarted', 'bad');
   }, buffers ? 1500 : 0);
 }
 

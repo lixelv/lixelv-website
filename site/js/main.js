@@ -52,6 +52,7 @@
   let W = 0, H = 0, gap = 12, n = 0, t0 = 0, raf = 0, visible = true, intro = !reduce;
   let hx, hy, x, y, lx, ly, vx, vy, on, sx, sy, delay;   // lx, ly: where a dot was one tick ago
   let mx = -9999, my = -9999, fmx = -9999, fmy = -9999, grav = false, idle = 0;
+  let cmx = -9999, cmy = -9999, ghostOn = false;      // the pointer in window coordinates; mx, my are in the field's
   let simNow = 0, lastFrame = 0, acc = 0;            // the simulation's own clock, in ms
 
   function build() {
@@ -107,6 +108,9 @@
       if (sp > cap) { ix *= cap / sp; iy *= cap / sp; }
       ripples.push({ x: bx, y: by, t: simNow, vx: ix, vy: iy });
     }
+    // A ring is gone once its strength has faded to nothing. (Left alone it would go on with a
+    // negative strength and pull the far corners back into colour.)
+    if (ripples.length && (simNow - ripples[0].t) * WAVE >= maxR) ripples = ripples.filter(rp => (simNow - rp.t) * WAVE < maxR);
     for (const rp of ripples) {
       const age = simNow - rp.t;
       rp.r = age * WAVE; rp.cx = rp.x + rp.vx * age; rp.cy = rp.y + rp.vy * age; rp.p = 1.9 * (1 - rp.r / maxR);
@@ -178,6 +182,7 @@
     acc += dt;
     const steps = Math.floor(acc / TICK); acc -= steps * TICK;
     if (steps) {
+      toField();
       const p = clamp(scrollY / H), has = mx > -999, sweep = has && fmx > -999;
       const x0 = sweep ? fmx : mx, y0 = sweep ? fmy : my;
       for (let s = 0; s < steps; s++) {
@@ -192,18 +197,31 @@
   }
   const start = () => { if (!raf && !reduce && lx) { lastFrame = 0; raf = requestAnimationFrame(loop); } };   // lx: the field is built
   const release = () => { grav = false; emitting = false; };
-  const setPointer = e => {
-    const r = cv.getBoundingClientRect(), nx = e.clientX - r.left, ny = e.clientY - r.top, now = performance.now(), dt = now - pt;
-    if (mx > -999 && dt > 0 && dt < 120) { pvx += ((nx - mx) / dt - pvx) * .4; pvy += ((ny - my) / dt - pvy) * .4; } else pvx = pvy = 0;
-    mx = nx; my = ny; pt = now;
+  // The pointer is kept in window coordinates and placed in the field on every frame: while the page
+  // scrolls under a resting pointer no event arrives, and a position remembered in the field's own
+  // coordinates would stay behind, then jump when the scroll ends.
+  const toField = () => {
+    if (cmx < -999) { mx = my = -9999; return; }
+    const r = cv.getBoundingClientRect(); mx = cmx - r.left; my = cmy - r.top;
   };
+  const noPointer = () => { cmx = cmy = mx = my = fmx = fmy = -9999; };
+  const setPointer = e => {
+    const nx = e.clientX, ny = e.clientY, now = performance.now(), dt = now - pt;
+    if (cmx > -999 && dt > 0 && dt < 120) { pvx += ((nx - cmx) / dt - pvx) * .4; pvy += ((ny - cmy) / dt - pvy) * .4; } else pvx = pvy = 0;
+    cmx = nx; cmy = ny; pt = now; ghostOn = false; toField();
+  };
+  // The chat's cursor (mcp.js) parts the field like a real pointer.
+  addEventListener('ghost:move', e => {
+    if (e.detail) { cmx = e.detail.x; cmy = e.detail.y; ghostOn = true; }
+    else if (ghostOn) { ghostOn = false; noPointer(); }
+  });
   addEventListener('pointermove', e => {
     setPointer(e);
     // A release that never arrived as an event (it happens after a context menu): three moves in a row with no button down.
     if (grav || emitting) { if (e.buttons) idle = 0; else if (++idle > 2) release(); }
   }, { passive: true });
   // The pointer left the window. (On `document` this event is not reliable across engines.)
-  root.addEventListener('pointerleave', () => { mx = my = fmx = fmy = -9999; });
+  root.addEventListener('pointerleave', noPointer);
   hero.addEventListener('contextmenu', e => e.preventDefault());
   hero.addEventListener('pointerdown', e => {
     if (reduce || e.target.closest('a, button')) return;
@@ -214,7 +232,7 @@
   });
   const up = e => {
     release();
-    if (e.pointerType && e.pointerType !== 'mouse') mx = my = fmx = fmy = -9999;
+    if (e.pointerType && e.pointerType !== 'mouse') noPointer();
   };
   addEventListener('pointerup', up);
   addEventListener('pointercancel', up);

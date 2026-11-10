@@ -30,15 +30,16 @@ The site works without a key; the chat then says that it is switched off.
 | Variable | Default | Meaning |
 |---|---|---|
 | `OPENROUTER_API_KEY` | none | Key for the chat. Without it `/api/chat` answers 503. |
-| `OPENROUTER_MODEL` | `anthropic/claude-haiku-5.5` | Model the chat uses. |
-| `OPENROUTER_PROVIDER` | `google-vertex/europe` | The only provider OpenRouter may route to. Empty lets OpenRouter choose. |
+| `OPENROUTER_MODEL` | `anthropic/claude-haiku-5.5` | Model the chat uses. Unset or empty means the default. |
+| `OPENROUTER_PROVIDER` | `google-vertex/europe` | The only provider OpenRouter may route to. Unset or empty means the default; `any` lets OpenRouter choose. |
 | `CHAT_DAILY_LIMIT` | `8` | Messages per visitor per day (UTC). |
 | `CHAT_GLOBAL_DAILY_LIMIT` | `300` | Messages for all visitors together per day. `0` turns it off. |
+| `GUIDE_GLOBAL_DAILY_LIMIT` | `60` | Guides (the Guide button) for all visitors together per day. `0` turns it off. |
 | `TRUST_PROXY` | `0` | Set to `1` behind your own reverse proxy, so the visitor address comes from `X-Forwarded-For`. |
 | `SITE_URL` | `https://lixelv.com` | Sent to OpenRouter as the referring site. |
 | `DATA_DIR` | `./data` (`/data` in Docker) | Where the message counter (SQLite) is kept. |
 
-What the model is told about lixelv, and how it should answer, is in [`server/prompt.md`](server/prompt.md). Edit that file to change it.
+What the model is told about lixelv, and how it should answer, is in [`server/prompt.md`](server/prompt.md). How it presents the site in a guide is in [`server/guide.md`](server/guide.md). Edit those files to change it.
 
 ## Behind Nginx
 
@@ -61,6 +62,7 @@ location / {
 server/
   main.py            FastAPI app: static files, /api/chat, /api/chat/quota, security headers
   prompt.md          system prompt for the chat
+  guide.md           added to the prompt for a guide: how to present and pace
   tools.json         the tools the chat model may call (OpenAI function format)
 site/
   index.html
@@ -84,6 +86,7 @@ site/
 
 - **Polycode** downloads Pyodide from jsDelivr the first time a visitor clicks the editor or presses Run. Nothing is downloaded before that. User code runs only in the visitor's browser.
 - **GlassChat** counts a message only when the model answers; a failed upstream call is refunded. The server stores a daily hash of the visitor address, not the address.
-- **GlassChat's tools** ("site MCP"). The model can scroll to any section, pin the chat to the side of the screen, run the four other demos, switch the theme and stir the hero. The server only describes the tools (`server/tools.json`) and never runs them: `/api/chat` answers with JSON lines (`text`, `tool_call`, `done`), the page carries a call out with a small cursor that presses the demos' real buttons (`js/demos/mcp.js`), and posts the result back. Those follow-up requests are free for the visitor; each needs the single-use `turn` token from the previous answer, which allows at most 6 more model calls per message and expires after 4 minutes. To add a tool, describe it in `tools.json` and add a function with the same name to `TOOLS` in `mcp.js`. The **Tour** chip runs the same tools from a script, without the model.
+- **GlassChat's tools** ("site MCP"). The model can scroll to any section, pin the chat to the side of the screen, run the four other demos, switch the theme and stir the hero. The tools: look (`get_page_state`, `read_section`), move (`go_to`, `scroll_by`), the chat window (`pin_chat`, `unpin_chat`), present (`highlight`, `caption`, `wait`), ControlHub (`controlhub_select`, `controlhub_run`), Polycode (`polycode_set_code`, `polycode_run`, `polycode_input`, `polycode_stop`), Ionet (`ionet_send`, `ionet_mode`, `ionet_reset`), Calculator (`calculator_press`, `calculator_clear`) and the page (`set_theme`, `hero_wave`, `hero_push`). None of them leaves the page. The server only describes the tools (`server/tools.json`) and never runs them: `/api/chat` answers with JSON lines (`text`, `tool_call`, `done`), the page carries a call out with a small cursor that presses the demos' real buttons (`js/demos/mcp.js`), and posts the result back. Those follow-up requests are free for the visitor; each needs the single-use `turn` token from the previous answer, which allows at most 6 more model calls per message and expires after 4 minutes. To add a tool, describe it in `tools.json` and add a function with the same name to `TOOLS` in `mcp.js`.
+- **Guide.** The Guide button asks the model to present the demos by itself: it chooses the order, the tool calls and the pauses (the `wait` tool), following `server/guide.md`. A guide costs the visitor one message, may take up to 24 model calls with 6 tool calls each, and ends after 10 minutes at the latest. Stop, Esc, a click outside or a typed message ends it. After every demo tool the page holds for 0.6 s, so even a hasty model cannot rush. Without a model (no key, no server, no messages left) the button runs a short scripted tour with the same tools.
 - **Motion** runs in fixed ticks of 1/144 s (`TICK` in `js/main.js`) and is drawn interpolated, so the hero, the dots behind the demos and the contact link feel the same at 60, 120 or 144 Hz.
 - **Ionet** runs real X25519 and ChaCha20 in the browser. It shows the idea of an Ionet session, not its exact wire format.

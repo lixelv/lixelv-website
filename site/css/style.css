@@ -149,8 +149,8 @@ section { padding: clamp(72px, 12vw, 170px) var(--pad); }
 .big-t { white-space: nowrap; }
 .big .c { display: inline-block; text-align: center; transition: color .35s; will-change: transform; }
 .big .c.hot { color: var(--accent); transition: none; }
-.big span:last-child { font: 400 .5em/1 var(--mono); transition: transform .45s var(--ease), color .3s; }
-.big:hover span:last-child, .big:focus-visible span:last-child { color: var(--accent); transform: translate(.15em, -.15em); }
+.big > span:last-child { font: 400 .5em/1 var(--mono); transition: transform .45s var(--ease), color .3s; }
+.big:hover > span:last-child, .big:focus-visible > span:last-child { color: var(--accent); transform: translate(.15em, -.15em); }
 footer {
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px;
   margin-top: clamp(72px, 12vw, 160px); padding-top: 20px; border-top: 1px solid var(--line);

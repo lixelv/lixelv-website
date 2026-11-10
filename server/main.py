@@ -12,6 +12,7 @@ that started the turn.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -404,10 +405,12 @@ async def chat(body: ChatRequest, request: Request):
 
     assert http is not None
     upstream_headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": SITE_URL, "X-Title": "lixelv.com"}
-    # The first call after a quiet spell can fail (a slow connect, a provider waking up): try once more
-    # before giving up, so the visitor does not have to send the message twice.
+    # The first call can fail (a slow connect, a provider rate-limited for a moment): try again, with a
+    # short pause, up to three times before giving up, so the visitor does not have to send the message twice.
     upstream = None
-    for attempt in (1, 2):
+    for attempt in (1, 2, 3):
+        if attempt > 1:
+            await asyncio.sleep(0.8 * (attempt - 1))  # a shared rate limit needs a moment, not an instant retry
         try:
             upstream = await http.send(http.build_request("POST", OPENROUTER_URL, json=payload, headers=upstream_headers), stream=True)
         except httpx.HTTPError as exc:

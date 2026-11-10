@@ -110,10 +110,14 @@ async function send(text, asGuide = false) {
     for (let round = 0, rounds = asGuide ? GUIDE_ROUNDS : MAX_ROUNDS; round < rounds && !stopping; round++) {
       reply = typing(); answer = '';
       abort = new AbortController();
-      const res = await fetch('api/chat', {
+      const ask = () => fetch('api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: abort.signal,
         body: JSON.stringify({ messages: history, turn, guide: asGuide }),
       });
+      // The first request after a quiet spell can fail on the way (a dropped connection, a 502).
+      // The server has refunded the message, so one more try costs nothing.
+      let res = await ask().catch(err => (err.name === 'AbortError' ? Promise.reject(err) : null));
+      if (!res || res.status === 502 || res.status === 504) { await new Promise(r => setTimeout(r, 600)); if (!stopping) res = await ask(); }
       if (!res.ok || !res.body) throw Object.assign(new Error('chat'), { status: res.status });
       const left = res.headers.get('X-Chat-Remaining');
       if (left !== null) { remaining = +left; setQuota(); }

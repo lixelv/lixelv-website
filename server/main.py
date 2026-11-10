@@ -403,24 +403,28 @@ async def chat(body: ChatRequest, request: Request):
             quota.refund(address, guide)
 
     assert http is not None
-    upstream_request = http.build_request(
-        "POST",
-        OPENROUTER_URL,
-        json=payload,
-        headers={"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": SITE_URL, "X-Title": "lixelv.com"},
-    )
-    try:
-        upstream = await http.send(upstream_request, stream=True)
-    except httpx.HTTPError as exc:
-        refund()
-        log.error("OpenRouter unreachable: %r", exc)
-        return JSONResponse({"error": "upstream"}, status_code=502)
-
-    if upstream.status_code != 200:
+    upstream_headers = {"Authorization": f"Bearer {API_KEY}", "HTTP-Referer": SITE_URL, "X-Title": "lixelv.com"}
+    # The first call after a quiet spell can fail (a slow connect, a provider waking up): try once more
+    # before giving up, so the visitor does not have to send the message twice.
+    upstream = None
+    for attempt in (1, 2):
+        try:
+            upstream = await http.send(http.build_request("POST", OPENROUTER_URL, json=payload, headers=upstream_headers), stream=True)
+        except httpx.HTTPError as exc:
+            log.error("OpenRouter unreachable (attempt %d): %r", attempt, exc)
+            upstream = None
+            continue
+        if upstream.status_code == 200:
+            break
         detail = (await upstream.aread()).decode("utf-8", "replace")[:500]
         await upstream.aclose()
+        log.error("OpenRouter answered %s (attempt %d): %s", upstream.status_code, attempt, detail)
+        retry = upstream.status_code >= 500 or upstream.status_code in (408, 429)
+        upstream = None
+        if not retry:
+            break
+    if upstream is None:
         refund()
-        log.error("OpenRouter answered %s: %s", upstream.status_code, detail)
         return JSONResponse({"error": "upstream"}, status_code=502)
 
     async def stream():

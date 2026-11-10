@@ -39,7 +39,7 @@ a { color: inherit; text-decoration: none; }
 .mono { font: 400 12px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .px { display: inline-block; width: 7px; height: 7px; background: var(--accent); flex: none; }
 
-#bar { position: fixed; inset: 0 0 auto 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: left; z-index: 20; }
+#bar { position: fixed; inset: 0 0 auto 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: left; z-index: 50; }
 
 /* ---------- hero ---------- */
 .hero {
@@ -105,13 +105,13 @@ section { padding: clamp(72px, 12vw, 170px) var(--pad); }
   display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
   background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
   transform: scale(calc(1 - var(--k) * .06)); transform-origin: top center;
-  filter: brightness(calc(1 - var(--k) * .5));
 }
-.card::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), var(--accent-soft), transparent 65%);
+/* A card that is being covered dims. A black veil gives the same picture as filter: brightness(),
+   without re-filtering the whole card (canvases, backdrop blur) on every scroll frame. */
+.card::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: #000; opacity: calc(var(--k) * .5);
 }
-.card:hover::before { opacity: 1; }
 .card-info { position: relative; padding: clamp(20px, 3vw, 44px); display: flex; flex-direction: column; justify-content: space-between; gap: 24px; }
 .card h3 { margin: 14px 0 12px; font: 600 clamp(28px, 3.8vw, 56px)/1.02 var(--sans); letter-spacing: -.045em; text-wrap: balance; }
 .card p { margin: 0; color: var(--muted); max-width: 36ch; }
@@ -122,7 +122,6 @@ section { padding: clamp(72px, 12vw, 170px) var(--pad); }
 .visit:hover i { transform: translate(4px, -4px); color: var(--accent); }
 .viz {
   position: relative; border-left: 1px solid var(--line); background-color: var(--bg);
-  background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 18px 18px;
   display: grid; place-items: center; overflow: hidden; padding: 20px;
 }
 /* ---------- path ---------- */
@@ -147,9 +146,11 @@ section { padding: clamp(72px, 12vw, 170px) var(--pad); }
   display: inline-flex; align-items: baseline; gap: .25em;
   font: 600 clamp(30px, 8.2vw, 132px)/1 var(--sans); letter-spacing: -.055em; transition: color .3s;
 }
-.big span:last-child { font: 400 .5em/1 var(--mono); transition: transform .45s var(--ease); }
-.big:hover { color: var(--accent); }
-.big:hover span:last-child { transform: translate(.15em, -.15em); }
+.big-t { white-space: nowrap; }
+.big .c { display: inline-block; text-align: center; transition: color .35s; will-change: transform; }
+.big .c.hot { color: var(--accent); transition: none; }
+.big span:last-child { font: 400 .5em/1 var(--mono); transition: transform .45s var(--ease), color .3s; }
+.big:hover span:last-child, .big:focus-visible span:last-child { color: var(--accent); transform: translate(.15em, -.15em); }
 footer {
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px;
   margin-top: clamp(72px, 12vw, 160px); padding-top: 20px; border-top: 1px solid var(--line);
@@ -161,7 +162,8 @@ footer a:hover { color: var(--fg); }
 .rv.in { opacity: 1; transform: none; }
 
 @media (max-width: 820px) {
-  .card { position: relative; top: auto; height: auto; grid-template-columns: 1fr; transform: none; filter: none; }
+  .card { position: relative; top: auto; height: auto; grid-template-columns: 1fr; transform: none; }
+  .card::after { display: none; }
   .viz { border-left: 0; border-top: 1px solid var(--line); min-height: 300px; }
   nav .hide-s { display: none; }
 }
@@ -170,5 +172,6 @@ footer a:hover { color: var(--fg); }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .rv, .path li { opacity: 1; transform: none; }
   .statement .w { opacity: 1; }
-  .card { transform: none; filter: none; }
+  .card { transform: none; }
+  .card::after { display: none; }
 }

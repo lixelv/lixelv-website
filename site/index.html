@@ -139,7 +139,13 @@
               <b class="act">About lixelv</b><b>Swift notes</b><b>MCP setup</b><b>Trip ideas</b>
             </div>
             <div class="gc-main">
-              <span class="gc-model" id="gc-model">Model ▾</span>
+              <div class="gc-head">
+                <span class="gc-model" id="gc-model">Model ▾</span>
+                <span class="gc-mcp" id="gc-mcp" title="Tools from this site's MCP server"><i></i>site MCP</span>
+                <button class="gc-pin" id="gc-pin" type="button" aria-pressed="false" aria-label="Pin the chat to the side" title="Pin to the side">
+                  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M10 1.5 14.5 6l-1.6.6-2.5 2.5.3 3.3L9.4 13.7 6 10.3 2.3 14l-.3-.3L5.7 10 2.3 6.6 3.6 5.3l3.3.3 2.5-2.5z" fill="currentColor"/></svg>
+                </button>
+              </div>
               <div class="gc-msgs" id="gc-msgs" aria-live="polite"></div>
               <div class="gc-chips" id="gc-chips"></div>
               <form class="gc-input" id="gc-form">
@@ -222,7 +228,7 @@
 
   <section id="contact" class="contact">
     <h2 class="mono label rv"><span class="px"></span><span data-scramble>Contact</span></h2>
-    <a class="big rv" href="https://github.com/lixelv" target="_blank" rel="noopener" aria-label="github.com/lixelv"><span data-scramble>github.com/lixelv</span><span aria-hidden="true">↗</span></a>
+    <a class="big rv" href="https://github.com/lixelv" target="_blank" rel="noopener" aria-label="github.com/lixelv"><span class="big-t" aria-hidden="true">github.com/lixelv</span><span aria-hidden="true">↗</span></a>
     <footer class="mono">
       <span>© 2026 lixelv</span>
       <a href="https://github.com/control-hub" target="_blank" rel="noopener">github.com/control-hub ↗</a>
@@ -233,8 +239,8 @@
 
 <script src="js/main.js" defer></script><script type="module" src="js/demos/controlhub.js"></script>
 <script type="module" src="js/demos/polycode.js"></script>
-<script type="module" src="js/demos/glasschat.js"></script>
 <script type="module" src="js/demos/ionet.js"></script>
 <script type="module" src="js/demos/calculator.js"></script>
+<script type="module" src="js/demos/glasschat.js"></script>
 </body>
 </html>

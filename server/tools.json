@@ -1,0 +1,118 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "go_to",
+      "description": "Scroll the visitor's page to a section or to one of the project cards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": ["top", "about", "stack", "work", "controlhub", "polycode", "glasschat", "ionet", "calculator", "path", "contact"]
+          }
+        },
+        "required": ["target"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "pin_chat",
+      "description": "Pin this chat window to the side of the screen so the visitor can keep talking to you while looking at the other demos, or put it back in its card. The demo tools pin it on their own; the visitor can unpin with Esc.",
+      "parameters": {
+        "type": "object",
+        "properties": { "pinned": { "type": "boolean" } },
+        "required": ["pinned"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "controlhub_run",
+      "description": "Operate the ControlHub demo: choose a script, choose computers, press Run. Returns what each computer reported. Six demo computers: PC-01..PC-06. 'awake' targets offline computers, every other script needs online ones.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "script": { "type": "string", "enum": ["run_program", "fullscreen", "cmd", "kill_process", "shutdown", "awake"] },
+          "computers": {
+            "type": "array",
+            "description": "Numbers of the computers to select, 1 to 6. Leave out to keep the current selection.",
+            "items": { "type": "integer", "minimum": 1, "maximum": 6 }
+          }
+        },
+        "required": ["script"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "polycode_run",
+      "description": "Type a short Python program into the Polycode demo editor and run it. It runs in the visitor's own browser (Pyodide). Returns the console output. The first run downloads Python and can take several seconds.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "description": "Python source, at most 1200 characters. Keep it short and quick to finish." },
+          "stdin": {
+            "type": "array",
+            "description": "Lines to type when the program calls input(), in order.",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["code"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ionet_send",
+      "description": "Send a message through the Ionet demo pipeline, encrypted (X25519 + ChaCha20, computed for real) or plain. Returns the bytes that went over the wire.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "description": "At most 14 characters." },
+          "encrypt": { "type": "boolean" }
+        },
+        "required": ["message", "encrypt"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "calculator_press",
+      "description": "Press keys on the Calculator demo, one after another. Returns what the display shows afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keys": { "type": "string", "description": "Keys in order, at most 24: digits, + - * /, = and C. Example: \"12*3=\"." }
+        },
+        "required": ["keys"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "set_theme",
+      "description": "Switch the site's colour theme.",
+      "parameters": {
+        "type": "object",
+        "properties": { "theme": { "type": "string", "enum": ["light", "dark"] } },
+        "required": ["theme"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "hero_wave",
+      "description": "Scroll to the top of the page and send a burst of waves through the pixel field that draws the name.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  }
+]

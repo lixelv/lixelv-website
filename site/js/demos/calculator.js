@@ -24,6 +24,8 @@ function press(k) {
   return true;
 }
 
+// Safari does not focus a button on click, so the keyboard would stay deaf after using the mouse.
+box.addEventListener('pointerdown', () => { if (!box.contains(document.activeElement)) box.focus({ preventScroll: true }); });
 box.addEventListener('click', e => { const b = e.target.closest('button'); if (b) press(b.textContent); });
 box.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;

@@ -2,16 +2,25 @@
 
 The chat API proxies OpenRouter so the key never reaches the browser, and
 gives each visitor a fixed number of messages per day.
+
+The model is also given tools (tools.json). The server never runs them: a tool
+call is passed to the page, the page carries it out (it drives the demos) and
+posts the result back, and the model goes on. Those follow-up requests do not
+cost the visitor a message; a short-lived signed token ties them to the message
+that started the turn.
 """
 
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import logging
 import os
+import secrets
 import sqlite3
 import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -56,9 +65,14 @@ SITE_URL = os.environ.get("SITE_URL", "https://lixelv.com").strip()
 DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT / "data"))
 
 MAX_USER_CHARS = 300
-MAX_HISTORY = 10
+MAX_HISTORY = 30  # tool calls and their results are messages too
 MAX_TOKENS = 1000
+MAX_TOOL_ROUNDS = 6  # model calls one visitor message may lead to after the first
+MAX_TOOL_CALLS = 4  # tool calls accepted from one model answer
+TURN_TTL = 240  # seconds a page has to run the tools and come back
 SYSTEM_PROMPT = (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8").strip()
+TOOLS: list[dict] = json.loads((Path(__file__).parent / "tools.json").read_text(encoding="utf-8"))
+TOOL_NAMES = {tool["function"]["name"] for tool in TOOLS}
 
 
 class Quota:
@@ -111,6 +125,18 @@ class Quota:
             self.db.commit()
             return DAILY_LIMIT - used - 1
 
+    def follow_up(self) -> bool:
+        """Counts a tool follow-up call against its own ceiling for everyone together."""
+        if not GLOBAL_DAILY_LIMIT:
+            return True
+        day = self.today()
+        with self.lock:
+            if self._count(day, "*tools") >= GLOBAL_DAILY_LIMIT * MAX_TOOL_ROUNDS:
+                return False
+            self._add(day, "*tools", 1)
+            self.db.commit()
+            return True
+
     def refund(self, address: str) -> None:
         """Gives the message back when the model never answered."""
         day = self.today()
@@ -120,7 +146,48 @@ class Quota:
             self.db.commit()
 
 
+class Turns:
+    """Signed, single-use tokens that let a page continue a turn after running tools.
+
+    A token says: this visitor may make `left` more model calls for the message they
+    already paid for. The key lives in memory, so a restart ends the turns in flight.
+    """
+
+    def __init__(self) -> None:
+        self.key = secrets.token_bytes(32)
+        self.used: dict[str, int] = {}  # signature -> expiry
+        self.lock = threading.Lock()
+
+    def _sign(self, who: str, body: str) -> str:
+        return hmac.new(self.key, f"{who}.{body}".encode(), hashlib.sha256).hexdigest()[:40]
+
+    def issue(self, who: str, left: int) -> str:
+        body = f"{int(time.time()) + TURN_TTL}.{left}.{secrets.token_hex(6)}"
+        return f"{body}.{self._sign(who, body)}"
+
+    def redeem(self, who: str, token: str) -> int | None:
+        """Returns how many model calls the token still allows, or None if it is not valid."""
+        try:
+            expires, left, nonce, signature = token.split(".")
+            expires_at, calls_left = int(expires), int(left)
+        except ValueError:
+            return None
+        now = int(time.time())
+        if expires_at < now or calls_left < 1:
+            return None
+        if not hmac.compare_digest(signature, self._sign(who, f"{expires}.{left}.{nonce}")):
+            return None
+        with self.lock:
+            for old in [s for s, exp in self.used.items() if exp < now]:
+                del self.used[old]
+            if signature in self.used:
+                return None
+            self.used[signature] = expires_at
+        return calls_left
+
+
 quota = Quota(DATA_DIR / "chat.sqlite3")
+turns = Turns()
 http: httpx.AsyncClient | None = None
 
 
@@ -164,6 +231,9 @@ async def security_headers(request: Request, call_next):
     h["X-Content-Type-Options"] = "nosniff"
     h["Referrer-Policy"] = "strict-origin-when-cross-origin"
     h["Content-Security-Policy"] = CSP
+    # Always revalidate the page's own files (they carry an ETag, so this costs a 304). Without it
+    # a browser may pair a cached script with a newer one that imports from it; Safari is keen on that.
+    h.setdefault("Cache-Control", "no-cache")
     return response
 
 
@@ -181,13 +251,57 @@ def seconds_to_reset() -> int:
     return int((midnight - now).total_seconds())
 
 
+class ToolCall(BaseModel):
+    id: str = Field(min_length=1, max_length=120)
+    name: str = Field(min_length=1, max_length=40)
+    arguments: str = Field(default="{}", max_length=4000)
+
+
 class Message(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=4000)
+    role: Literal["user", "assistant", "tool"]
+    content: str = Field(default="", max_length=4000)
+    tool_calls: list[ToolCall] | None = Field(default=None, max_length=MAX_TOOL_CALLS)
+    tool_call_id: str | None = Field(default=None, max_length=120)
 
 
 class ChatRequest(BaseModel):
-    messages: list[Message] = Field(min_length=1, max_length=40)
+    messages: list[Message] = Field(min_length=1, max_length=60)
+    turn: str | None = Field(default=None, max_length=200)
+
+
+def check_messages(messages: list[Message]) -> str | None:
+    """Returns what is wrong with the conversation, or None. It comes from the page, so nothing in it is trusted."""
+    asked: set[str] = set()  # ids of tool calls the assistant made and nobody answered yet
+    for m in messages:
+        if m.role == "tool":
+            if m.tool_call_id not in asked:
+                return "a tool result without its call"
+            asked.discard(m.tool_call_id)
+            continue
+        if asked:
+            return "a tool call without its result"
+        if m.role == "assistant" and m.tool_calls:
+            if any(call.name not in TOOL_NAMES for call in m.tool_calls):
+                return "unknown tool"
+            asked = {call.id for call in m.tool_calls}
+        elif not m.content.strip():
+            return "an empty message"
+        elif m.tool_calls or m.tool_call_id:
+            return "tool fields on the wrong message"
+    return "a tool call without its result" if asked else None
+
+
+def to_openai(m: Message) -> dict:
+    if m.role == "tool":
+        return {"role": "tool", "tool_call_id": m.tool_call_id, "content": m.content or "(no output)"}
+    if m.role == "assistant" and m.tool_calls:
+        calls = [{"id": c.id, "type": "function", "function": {"name": c.name, "arguments": c.arguments or "{}"}} for c in m.tool_calls]
+        return {"role": "assistant", "content": m.content or None, "tool_calls": calls}
+    return {"role": m.role, "content": m.content}
+
+
+def event(data: dict) -> str:
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n"
 
 
 @app.get("/api/chat/quota")
@@ -198,6 +312,7 @@ async def chat_quota(request: Request):
             "limit": DAILY_LIMIT,
             "remaining": quota.remaining(client_address(request)),
             "model": MODEL.split("/")[-1],
+            "tools": sorted(TOOL_NAMES),
         },
         headers={"Cache-Control": "no-store"},
     )
@@ -205,35 +320,57 @@ async def chat_quota(request: Request):
 
 @app.post("/api/chat")
 async def chat(body: ChatRequest, request: Request):
+    """Answers as a stream of JSON lines: {"type": "text"}, then any {"type": "tool_call"}, then {"type": "done"}."""
     if not API_KEY:
         return JSONResponse({"error": "not_configured"}, status_code=503)
 
     messages = body.messages[-MAX_HISTORY:]
     while messages and messages[0].role != "user":
         messages = messages[1:]
-    if not messages or messages[-1].role != "user":
-        return JSONResponse({"error": "bad_request", "detail": "the last message must be from the user"}, status_code=400)
-    if len(messages[-1].content) > MAX_USER_CHARS:
-        return JSONResponse({"error": "too_long", "limit": MAX_USER_CHARS}, status_code=400)
+    problem = "no user message" if not messages else check_messages(messages)
+    if problem:
+        return JSONResponse({"error": "bad_request", "detail": problem}, status_code=400)
+    last = messages[-1]
+    if last.role == "assistant":
+        return JSONResponse({"error": "bad_request", "detail": "the last message must be from the user or a tool"}, status_code=400)
 
     address = client_address(request)
-    left = quota.take(address)
-    if left is None:
-        reset = seconds_to_reset()
-        return JSONResponse(
-            {"error": "rate_limited", "limit": DAILY_LIMIT, "reset_in": reset},
-            status_code=429,
-            headers={"Retry-After": str(reset)},
-        )
+    who = quota.who(address, quota.today())
+    paid = last.role == "user"  # a new message from the visitor; otherwise the page is returning tool results
+    if paid:
+        if len(last.content) > MAX_USER_CHARS:
+            return JSONResponse({"error": "too_long", "limit": MAX_USER_CHARS}, status_code=400)
+        left = quota.take(address)
+        if left is None:
+            reset = seconds_to_reset()
+            return JSONResponse(
+                {"error": "rate_limited", "limit": DAILY_LIMIT, "reset_in": reset},
+                status_code=429,
+                headers={"Retry-After": str(reset)},
+            )
+        rounds = MAX_TOOL_ROUNDS
+    else:
+        allowed = turns.redeem(who, body.turn or "")
+        if allowed is None or not quota.follow_up():
+            return JSONResponse({"error": "turn_expired"}, status_code=403)
+        rounds = allowed - 1
+        left = quota.remaining(address)
 
     payload: dict = {
         "model": MODEL,
         "stream": True,
         "max_tokens": MAX_TOKENS,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *(m.model_dump() for m in messages)],
+        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *(to_openai(m) for m in messages)],
+        # The tools stay in the request even on the last round (the conversation refers to them); the model is just told not to call any.
+        "tools": TOOLS,
+        "tool_choice": "auto" if rounds > 0 else "none",
     }
     if PROVIDER:
         payload["provider"] = {"order": [PROVIDER], "allow_fallbacks": False}
+
+    def refund() -> None:
+        if paid:
+            quota.refund(address)
 
     assert http is not None
     upstream_request = http.build_request(
@@ -245,18 +382,19 @@ async def chat(body: ChatRequest, request: Request):
     try:
         upstream = await http.send(upstream_request, stream=True)
     except httpx.HTTPError as exc:
-        quota.refund(address)
+        refund()
         log.error("OpenRouter unreachable: %r", exc)
         return JSONResponse({"error": "upstream"}, status_code=502)
 
     if upstream.status_code != 200:
         detail = (await upstream.aread()).decode("utf-8", "replace")[:500]
         await upstream.aclose()
-        quota.refund(address)
+        refund()
         log.error("OpenRouter answered %s: %s", upstream.status_code, detail)
         return JSONResponse({"error": "upstream"}, status_code=502)
 
     async def stream():
+        calls: dict[int, dict] = {}  # tool calls arrive in pieces, keyed by their index
         try:
             async for line in upstream.aiter_lines():
                 if not line.startswith("data:"):
@@ -265,20 +403,39 @@ async def chat(body: ChatRequest, request: Request):
                 if data == "[DONE]":
                     break
                 try:
-                    chunk = json.loads(data)
-                    text = chunk["choices"][0]["delta"].get("content")
-                except (ValueError, KeyError, IndexError, TypeError):
+                    delta = json.loads(data)["choices"][0].get("delta") or {}
+                except (ValueError, KeyError, IndexError, TypeError, AttributeError):
                     continue
-                if text:
-                    yield text
+                text = delta.get("content")
+                if text and isinstance(text, str):
+                    yield event({"type": "text", "text": text})
+                for piece in delta.get("tool_calls") or []:
+                    try:
+                        call = calls.setdefault(int(piece.get("index") or 0), {"id": "", "name": "", "arguments": ""})
+                        function = piece.get("function") or {}
+                        call["id"] = piece.get("id") or call["id"]
+                        call["name"] = function.get("name") or call["name"]
+                        call["arguments"] += function.get("arguments") or ""
+                    except (TypeError, ValueError, AttributeError):
+                        continue
         except httpx.HTTPError as exc:
             log.error("OpenRouter stream broke: %r", exc)
+            yield event({"type": "error"})
+            return
         finally:
             await upstream.aclose()
 
+        wanted = [c for _, c in sorted(calls.items()) if c["id"] and c["name"] in TOOL_NAMES][:MAX_TOOL_CALLS] if rounds > 0 else []
+        for call in wanted:
+            yield event({"type": "tool_call", **call})
+        done: dict = {"type": "done"}
+        if wanted:
+            done["turn"] = turns.issue(who, rounds)
+        yield event(done)
+
     return StreamingResponse(
         stream(),
-        media_type="text/plain; charset=utf-8",
+        media_type="application/x-ndjson",
         headers={"X-Chat-Remaining": str(left), "Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
 

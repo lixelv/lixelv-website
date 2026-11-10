@@ -2,6 +2,8 @@
 
 .viz { grid-template-columns: minmax(0, 1fr); }
 .viz > * { position: relative; justify-self: center; width: 100%; min-width: 0; max-width: 580px; }
+/* the live dot field behind every demo (js/main.js) */
+.viz > canvas.dots { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; pointer-events: none; }
 .viz [hidden] { display: none !important; }
 .viz button, .viz input, .viz textarea { -webkit-tap-highlight-color: transparent; }
 
@@ -119,7 +121,7 @@
 .pcx-hl { pointer-events: none; overflow: hidden; }
 #pcx-code { background: transparent; color: transparent; caret-color: var(--fg); resize: none; outline: none; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 #pcx-code::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: transparent; }
-.pcx-con { border-top: 1px solid var(--line); height: 204px; overflow: auto; padding: 10px 14px; background: var(--bg); scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.pcx-con { border-top: 1px solid var(--line); height: 142px; overflow: auto; padding: 10px 14px; background: var(--bg); scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 .pcx-out { display: inline; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pcx-out .err { color: var(--red); }
 .pcx-out .in { color: var(--accent); }
@@ -143,6 +145,18 @@
 .gc-side b { font-weight: 400; font-size: 11.5px; padding: 5px 8px; border-radius: 7px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gc-side b.act { background: color-mix(in srgb, var(--fg) 16%, transparent); color: var(--fg); }
 .gc-main { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 8px; min-width: 0; min-height: 0; }
+.gc-head { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 6px; min-height: 24px; padding: 0 26px; }
+.gc-mcp {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; white-space: nowrap;
+  font: 400 10px/1.5 var(--mono); letter-spacing: .04em; color: var(--muted); border: 1px solid rgba(255, 255, 255, .18);
+}
+.gc-mcp i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.gc-pin {
+  position: absolute; right: 0; top: 50%; width: 24px; height: 24px; margin-top: -12px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; transition: color .2s, background-color .2s, transform .3s var(--ease);
+}
+.gc-pin:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 12%, transparent); }
+.gc-pin[aria-pressed="true"] { color: var(--accent); transform: rotate(-45deg); }
 .gc-model { align-self: center; padding: 3px 12px; border-radius: 99px; background: color-mix(in srgb, var(--fg) 12%, transparent); font-weight: 500; font-size: 11.5px; white-space: nowrap; }
 .gc-msgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; scrollbar-width: none; }
 .gc-msgs::-webkit-scrollbar { display: none; }
@@ -156,6 +170,15 @@
 .gc-msgs .typing i:nth-child(2) { animation-delay: .15s; }
 .gc-msgs .typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes gc-dot { 0%, 60%, 100% { opacity: .25; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+.gc-msgs .tool {
+  display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; padding: 3px 9px 3px 8px; border-radius: 7px; white-space: nowrap;
+  font: 400 10.5px/1.5 var(--mono); color: var(--muted); border: 1px solid rgba(255, 255, 255, .16); background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.gc-msgs .tool i { width: 8px; height: 8px; flex: none; border-radius: 50%; border: 1.5px solid var(--accent); border-right-color: transparent; animation: gc-spin .7s linear infinite; }
+.gc-msgs .tool.done i { animation: none; border: 0; width: 6px; height: 6px; margin: 0 1px; background: var(--accent); }
+.gc-msgs .tool b { font-weight: 500; color: var(--fg); }
+.gc-msgs .tool b::after { content: " ·"; color: var(--muted); }
+@keyframes gc-spin { to { transform: rotate(360deg); } }
 .gc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .gc-chips button {
   font: inherit; font-size: 11.5px; padding: 4px 10px; border-radius: 99px; cursor: pointer; color: var(--fg);
@@ -173,6 +196,64 @@
 .gc-input button:active { transform: scale(.9); }
 .gc-quota { min-height: 14px; text-align: center; font: 400 10px/1.4 var(--mono); color: var(--muted); }
 .gc-quota.out { color: var(--warn); }
+
+/* GlassChat pinned: the window leaves its card and stays at the side (js/demos/mcp.js).
+   The dock dims and blurs the text column, fades out over a short gradient, and stops where the demos begin. */
+.gc-away {
+  height: 350px; max-height: 100%; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center;
+  border-radius: 18px; border: 1px dashed var(--line); color: var(--muted); font-size: 12.5px;
+}
+.gc-away button {
+  font: 400 11.5px/1 var(--mono); padding: 8px 12px; border-radius: 99px; cursor: pointer; color: var(--fg);
+  border: 1px solid var(--line); background: var(--card); transition: border-color .2s;
+}
+.gc-away button:hover { border-color: var(--muted); }
+.gc-away kbd { font: inherit; color: var(--muted); margin-left: 6px; }
+.gc-dock {
+  position: fixed; z-index: 30; inset: 0 auto 0 0; width: var(--dock-w, 40vw); display: grid; place-items: center;
+  padding: 72px 64px 40px var(--pad); visibility: hidden; pointer-events: none; transition: visibility 0s .45s;
+}
+.gc-dock.on { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+/* The shade is a row of strips (mcp.js makes them): one wide strip at full strength, then eight
+   narrow ones, each a little weaker (--t), each blurring a little less. A mask over one blurred
+   layer would be simpler, but WebKit drops the backdrop blur of a masked element. */
+.gc-dock-shade { position: absolute; inset: 0; pointer-events: none; }
+.gc-dock-shade i {
+  position: absolute; top: 0; bottom: 0; right: calc(var(--o) * 7px); width: 7px;
+  opacity: calc(var(--t) * var(--on, 0)); transition: opacity .45s;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  -webkit-backdrop-filter: blur(calc(14px * var(--t))); backdrop-filter: blur(calc(14px * var(--t)));
+}
+.gc-dock-shade i:first-child { left: 0; width: auto; }
+.gc-dock.on { --on: 1; }
+.gc-dock.away { --on: 0; }
+.gc-dock-slot { position: relative; width: min(100%, 440px); transition: opacity .3s, transform .45s var(--ease); }
+.gc-dock .gc { width: 100%; height: min(620px, calc(100vh - 150px)); max-height: none; background: color-mix(in srgb, var(--card) 66%, transparent); }
+/* a narrow text column leaves no room for the chat's own sidebar */
+@media (max-width: 1280px) {
+  .gc-dock { padding-right: 56px; }
+  .gc-dock .gc { grid-template-columns: minmax(0, 1fr); }
+  .gc-dock .gc-side { display: none; }
+}
+.gc-dock.away { pointer-events: none; }
+.gc-dock.away .gc-dock-slot { opacity: 0; transform: translateX(-28px); }
+
+/* the cursor the chat's tools work with */
+.mcp-cursor { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; opacity: 0; transition: opacity .25s; will-change: transform; }
+.mcp-cursor.on { opacity: 1; }
+.mcp-cursor svg { display: block; overflow: visible; transform-origin: 3px 2px; transition: transform .12s; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .45)); }
+.mcp-cursor path { fill: var(--accent); stroke: var(--bg); stroke-width: 1.3; stroke-linejoin: round; }
+.mcp-cursor.down svg { transform: scale(.8); }
+.mcp-cursor b {
+  position: absolute; left: 15px; top: 19px; padding: 2px 7px; border-radius: 3px 9px 9px 9px; white-space: nowrap;
+  background: var(--accent); color: var(--bg); font: 500 10px/1.5 var(--mono); letter-spacing: .02em;
+}
+.mcp-ring {
+  position: fixed; z-index: 59; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
+  border: 1.5px solid var(--accent); pointer-events: none; animation: mcp-ring .45s var(--ease) forwards;
+}
+@keyframes mcp-ring { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
+.mcp-hit { outline: 2px solid var(--accent) !important; outline-offset: 2px; }
 
 /* ---------- Ionet: a message through the pipeline ---------- */
 .nx { display: grid; gap: 10px; font: 400 12px/1.5 var(--mono); }
@@ -249,6 +330,15 @@
 .calc button.op { color: var(--accent); }
 .calc button.eq { background: var(--accent); color: var(--bg); border-color: transparent; font-weight: 500; }
 
+/* stacked cards: the pinned chat is a sheet at the bottom, the demos stay above it */
+@media (max-width: 820px) {
+  .gc-dock { inset: auto 0 0 0; width: auto; height: 46svh; padding: 30px 12px 12px; }
+  .gc-dock-shade i { left: 0; right: 0; bottom: auto; width: auto; top: calc(var(--o) * 3.5px); height: 3.5px; }
+  .gc-dock-shade i:first-child { top: 28px; bottom: 0; height: auto; }
+  .gc-dock-slot { width: 100%; height: 100%; }
+  .gc-dock .gc { height: 100%; }
+  .gc-dock.away .gc-dock-slot { transform: translateY(28px); }
+}
 @media (max-width: 560px) {
   .gc { grid-template-columns: minmax(0, 1fr); }
   .gc-side { display: none; }

@@ -6,10 +6,17 @@ export const sleep = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
 export const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const hex = b => b.toString(16).padStart(2, '0');
 
+/** Resolves once the page's own style sheets are applied. WebKit can run scripts before that,
+ *  and an unstyled page has everything stacked near the top: "visible" long before it really is. */
+export const styled = Promise.all($$('link[rel="stylesheet"]').filter(l => l.href.startsWith(location.origin)).map(l => new Promise(done => {
+  if (l.sheet) return done();
+  l.addEventListener('load', done, { once: true }); l.addEventListener('error', done, { once: true });
+})));
+
 /** Runs fn the first time el scrolls into view. */
 export function onceVisible(el, fn, threshold = .5) {
   const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { io.disconnect(); fn(); } }, { threshold });
-  io.observe(el);
+  styled.then(() => io.observe(el));
 }
 
 /** Minimal Python highlighter: comments, strings, numbers, keywords, called builtins. */

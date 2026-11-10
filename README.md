@@ -4,7 +4,7 @@ Personal site of lixelv: a static front end and a small FastAPI server.
 
 The server does two things the page cannot do alone:
 
-- **Chat API** for the GlassChat demo. It proxies OpenRouter, so the API key never reaches the browser, and limits each visitor to 8 messages a day.
+- **Chat API** for the GlassChat demo. It proxies OpenRouter, so the API key never reaches the browser, and limits each visitor to 8 messages a day. It also hands the model the tools of the site's MCP server (see below).
 - **Cross-origin isolation headers** (COOP and COEP). The Polycode demo needs them so Python's `input()` can block on a `SharedArrayBuffer`.
 
 ## Run it
@@ -61,6 +61,7 @@ location / {
 server/
   main.py            FastAPI app: static files, /api/chat, /api/chat/quota, security headers
   prompt.md          system prompt for the chat
+  tools.json         the tools the chat model may call (OpenAI function format)
 site/
   index.html
   404.html
@@ -73,6 +74,7 @@ site/
     polycode.js      editor and console
     py-worker.js     Python (Pyodide) in a worker, ported from Polycode's runner
     glasschat.js     chat widget talking to /api/chat
+    mcp.js           the chat's tools, carried out on the page: cursor, pinned mode, demo drivers
     ionet.js         message pipeline: encryptor, transmitter, receiver, decryptor
     ionet-crypto.js  X25519 and ChaCha20
     calculator.js
@@ -82,4 +84,6 @@ site/
 
 - **Polycode** downloads Pyodide from jsDelivr the first time a visitor clicks the editor or presses Run. Nothing is downloaded before that. User code runs only in the visitor's browser.
 - **GlassChat** counts a message only when the model answers; a failed upstream call is refunded. The server stores a daily hash of the visitor address, not the address.
+- **GlassChat's tools** ("site MCP"). The model can scroll to any section, pin the chat to the side of the screen, run the four other demos, switch the theme and stir the hero. The server only describes the tools (`server/tools.json`) and never runs them: `/api/chat` answers with JSON lines (`text`, `tool_call`, `done`), the page carries a call out with a small cursor that presses the demos' real buttons (`js/demos/mcp.js`), and posts the result back. Those follow-up requests are free for the visitor; each needs the single-use `turn` token from the previous answer, which allows at most 6 more model calls per message and expires after 4 minutes. To add a tool, describe it in `tools.json` and add a function with the same name to `TOOLS` in `mcp.js`. The **Tour** chip runs the same tools from a script, without the model.
+- **Motion** runs in fixed ticks of 1/144 s (`TICK` in `js/main.js`) and is drawn interpolated, so the hero, the dots behind the demos and the contact link feel the same at 60, 120 or 144 Hz.
 - **Ionet** runs real X25519 and ChaCha20 in the browser. It shows the idea of an Ionet session, not its exact wire format.

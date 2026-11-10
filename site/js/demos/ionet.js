@@ -108,7 +108,6 @@ async function send() {
     const nonce = new Uint8Array(12); new DataView(nonce.buffer).setUint32(0, session.n++, true);
     stream = chacha20Stream(session.client, nonce, 0, bytes.length);
     payload = xor(bytes, stream);
-    setNote('en', 'column by column, no carry');
     await columns(box.en, bytes, stream, payload, { labels: chars.length === bytes.length ? chars : [...bytes].map(hex), cls: 'ch' }, { labels: [...payload].map(hex), cls: 'c' }, live);
     if (!live()) return;
   }
@@ -141,7 +140,7 @@ async function send() {
   await sleep(TRAVEL + 160); if (!live()) return;
 
   // --- Receiver, and the Decryptor when the session is encrypted
-  active('rx'); setNote('rx', `${4 + bytes.length} bytes received`);
+  active('rx');
   await sleep(420); if (!live()) return;
   if (!secure) {
     step.textContent = 'Receiver: bytes back to text';
@@ -157,7 +156,6 @@ async function send() {
     const plain = xor(payload, ks);
     const got = new TextDecoder().decode(plain);
     const out = [...got].length === plain.length ? [...got].map(glyph) : [...plain].map(hex);
-    setNote('de', 'the same keystream, the same sum');
     await columns(box.de, payload, ks, plain, { labels: [...payload].map(hex), cls: 'c' }, { labels: out, cls: 'ch' }, live);
     if (!live()) return;
     step.textContent = 'Delivered. Only the two ends ever saw the text.';

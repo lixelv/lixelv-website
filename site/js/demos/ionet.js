@@ -7,16 +7,13 @@ import { keyPair, x25519, chacha20Stream, xor } from './ionet-crypto.js';
 
 const root = $('#nx'), form = $('#nx-form'), msg = $('#nx-msg'), encBox = $('#nx-enc');
 const box = { tx: $('#nx-tx'), rx: $('#nx-rx'), en: $('#nx-en'), de: $('#nx-de') };
-const note = { tx: $('#nx-tx-n'), rx: $('#nx-rx-n'), en: $('#nx-en-n'), de: $('#nx-de-n') };
 const wire = $('#nx-wire'), step = $('#nx-step'), keyEl = $('#nx-key');
 const utf8 = new TextEncoder(), TRAVEL = 480, MAX_BYTES = 16;
 
 let run = 0, session = null;     // session: { client, server } shared keys (equal), n: messages sent
 
-const short = b => hex(b[0]) + hex(b[1]) + '…' + hex(b[b.length - 1]);
 const glyph = ch => (ch === ' ' ? '␣' : ch);
 const cellsHTML = (items, cls) => items.map(t => `<i class="${cls}">${esc(t)}</i>`).join('');
-const setNote = (k, text, cls = '') => { note[k].textContent = text; note[k].className = cls; };
 function active(name) {
   $$('.nx-b', root).forEach(b => b.classList.toggle('on', b.dataset.b === name));
   wire.classList.toggle('on', name === 'wire');
@@ -73,7 +70,6 @@ async function handshake(live) {
   const a = keyPair(), b = keyPair();
   active('wire');
   step.textContent = '1. Handshake: the two sides swap public keys (ECDH)';
-  setNote('en', `public key ${short(a.public)}`); setNote('de', `public key ${short(b.public)}`);
   for (let i = 0; i < 4; i++) { packet('key'); await sleep(70); }
   await sleep(TRAVEL); if (!live()) return;
   for (let i = 0; i < 4; i++) { packet('key', true); await sleep(70); }
@@ -81,7 +77,6 @@ async function handshake(live) {
   // Each side combines its own secret with the other's public key and lands on the same value.
   session = { client: x25519(a.secret, b.public), server: x25519(b.secret, a.public), n: 0 };
   showKey();
-  setNote('en', `shared key ${short(session.client)}`, 'good'); setNote('de', `shared key ${short(session.server)}`, 'good');
   step.textContent = '2. Both sides now hold the same key. It never crossed the wire.';
   await sleep(1100);
 }
@@ -95,13 +90,11 @@ async function send() {
   root.classList.toggle('plain', !secure);
   Object.values(box).forEach(el => (el.innerHTML = ''));
   wire.querySelectorAll('.pkt').forEach(p => p.remove());
-  ['tx', 'rx'].forEach(k => setNote(k, ''));
   showKey();
 
   let payload = bytes, stream = null;
   if (secure) {
     if (!session) { await handshake(live); if (!live()) return; }
-    setNote('de', `shared key ${short(session.server)}`, 'good');
     // --- Encryptor: text -> bytes -> XOR with the keystream
     active('enc');
     step.textContent = 'Encryptor: every byte of your text is XORed with a byte of the keystream';
@@ -120,7 +113,7 @@ async function send() {
     box.tx.innerHTML = lenCell + cellsHTML([...payload].map(hex), 'c');
   } else {
     step.textContent = 'Transmitter: the text becomes bytes and goes out as it is';
-    box.tx.innerHTML = cellsHTML(chars, 'ch'); setNote('tx', 'text');
+    box.tx.innerHTML = cellsHTML(chars, 'ch');
     await sleep(480); if (!live()) return;
     await morph(box.tx, [...bytes].map(hex), 'p', live); if (!live()) return;
     box.tx.insertAdjacentHTML('afterbegin', lenCell);
@@ -145,7 +138,6 @@ async function send() {
   if (!secure) {
     step.textContent = 'Receiver: bytes back to text';
     await morph(box.rx, chars, 'ch', live); if (!live()) return;
-    setNote('rx', 'text', 'good');
     step.textContent = 'Delivered. Plain session: input and output are connected directly.';
   } else {
     active('dec');
@@ -169,7 +161,6 @@ encBox.addEventListener('change', () => { session = null; send(); });   // a new
 addEventListener('ionet:reset', () => {
   run++; session = null;
   Object.values(box).forEach(el => (el.innerHTML = ''));
-  Object.keys(note).forEach(k => setNote(k, ''));
   active(null); showKey(); step.textContent = 'Type a message and press Send';
 });
 

@@ -8,7 +8,9 @@ import { $, $$, sleep, reduce } from '../util.js';
 const root = document.documentElement;
 const gc = $('#gc'), home = $('#gc-viz'), msgs = $('#gc-msgs'), pinBtn = $('#gc-pin');
 const cards = $$('.card'), cardsEl = $('.cards');
-const CARD = { controlhub: 0, polycode: 1, glasschat: 2, ionet: 3, calculator: 4 };
+// Card name (data-card in index.html) -> its place in the stack. Read from the page, so adding,
+// hiding or moving a card needs no change here.
+const CARD = Object.fromEntries(cards.map((c, i) => [c.dataset.card, i]));
 const SECTION = { top: '#top', about: '#statement', stack: '#stack', work: '#work', path: '#path', contact: '#contact' };
 const SCRIPT = { run_program: 'open', fullscreen: 'full', cmd: 'cmd', kill_process: 'kill', shutdown: 'shutdown', awake: 'awake' };
 
@@ -207,7 +209,7 @@ async function open(i) {
 function inView() {
   const el = document.elementFromPoint(innerWidth * (narrow() ? .5 : .75), innerHeight * .5);
   const card = el && el.closest('.card');
-  if (card) return `the ${Object.keys(CARD)[cards.indexOf(card)]} card`;
+  if (card) return `the ${card.dataset.card} card`;
   const sec = el && el.closest('section[id], header[id], .hero, footer');
   if (!sec) return 'the page';
   if (sec.matches('.hero')) return 'the top (the name in pixels)';
@@ -284,15 +286,16 @@ async function ionetDone() {
   return `${ok ? step.textContent : 'It did not finish in time.'} Sent "${$('#nx-msg').value}". On the wire: ${cells('#nx-tx')}. ${secure ? `Both sides derived the same key (starts ${$('#nx-key b')?.textContent || '?'}). The visitor saw each byte XORed with the keystream, written as a column sum in binary. ` : ''}The receiver read "${got}".`;
 }
 
-/* things `highlight` can point at: [card, selector] */
+/* things `highlight` can point at: [card name, or null outside the cards, selector] */
 const SPOT = {
-  'hero': [-1, '.hero'], 'theme_button': [-1, '#theme'],
-  'controlhub.scripts': [0, '#ch-scripts'], 'controlhub.computers': [0, '#ch-grid'], 'controlhub.run': [0, '#ch-run'], 'controlhub.log': [0, '#ch-log'],
-  'polycode.editor': [1, '.pcx-ed'], 'polycode.run': [1, '#pcx-run'], 'polycode.console': [1, '#pcx-con'],
-  'glasschat.window': [2, '#gc'],
-  'ionet.input': [3, '#nx-form'], 'ionet.encryptor': [3, '#nx [data-b="enc"]'], 'ionet.transmitter': [3, '#nx [data-b="tx"]'], 'ionet.wire': [3, '#nx-wire'],
-  'ionet.receiver': [3, '#nx [data-b="rx"]'], 'ionet.decryptor': [3, '#nx [data-b="dec"]'], 'ionet.key': [3, '#nx-key'],
-  'calculator.display': [4, '#calc output'], 'calculator.keys': [4, '#calc'],
+  'hero': [null, '.hero'], 'theme_button': [null, '#theme'],
+  'controlhub.scripts': ['controlhub', '#ch-scripts'], 'controlhub.computers': ['controlhub', '#ch-grid'], 'controlhub.run': ['controlhub', '#ch-run'], 'controlhub.log': ['controlhub', '#ch-log'],
+  'polycode.editor': ['polycode', '.pcx-ed'], 'polycode.run': ['polycode', '#pcx-run'], 'polycode.console': ['polycode', '#pcx-con'],
+  'glasschat.window': ['glasschat', '#gc'],
+  'ionet.input': ['ionet', '#nx-form'], 'ionet.encryptor': ['ionet', '#nx [data-b="enc"]'], 'ionet.transmitter': ['ionet', '#nx [data-b="tx"]'], 'ionet.wire': ['ionet', '#nx-wire'],
+  'ionet.receiver': ['ionet', '#nx [data-b="rx"]'], 'ionet.decryptor': ['ionet', '#nx [data-b="dec"]'], 'ionet.key': ['ionet', '#nx-key'],
+  // The Calculator card is hidden (index.html):
+  // 'calculator.display': ['calculator', '#calc output'], 'calculator.keys': ['calculator', '#calc'],
 };
 /* ways across the pixel field for `hero_push`: k in 0..1 -> a point in the hero's box */
 const PATHS = {
@@ -337,7 +340,7 @@ const TOOLS = {
       `ControlHub: ${chState()}.`,
       `Polycode: ${pc.status.textContent.trim() || 'not started'}${pc.running() ? ', a program is running' : ''}${pc.form.hidden ? '' : ', waiting at input()'}.`,
       `Ionet: ${$('#nx-enc').checked ? 'encrypted' : 'plain'} session, message "${$('#nx-msg').value}". ${$('#nx-step').textContent}`,
-      `Calculator display: ${$('#calc output').textContent}.`,
+      // `Calculator display: ${$('#calc output').textContent}.`,   (the Calculator card is hidden)
     ].join('\n');
   },
 
@@ -352,7 +355,7 @@ const TOOLS = {
     const at = SPOT[target];
     if (!at) return `There is nothing called "${target}". Use one of: ${Object.keys(SPOT).join(', ')}.`;
     if (target === 'hero') await scrollToY(0);
-    else if (at[0] >= 0 && !(at[0] === CARD.glasschat && pinned)) await open(at[0]);
+    else if (at[0] && !(at[0] === 'glasschat' && pinned)) await open(CARD[at[0]]);
     const el = $(at[1]);
     if (!el || !el.getClientRects().length) return `"${target}" is not shown right now.`;
     await reveal(el); await moveTo(el, .5, .5);
@@ -454,6 +457,7 @@ const TOOLS = {
     return 'The session is forgotten. The next encrypted message starts with a new key exchange.';
   },
 
+  /* The Calculator card is hidden (index.html), and so are its tools (tools.json: "disabled").
   async calculator_clear() {
     await open(CARD.calculator);
     await press($$('#calc button').find(b => b.textContent === 'C'));
@@ -470,6 +474,7 @@ const TOOLS = {
     const expr = $('#calc-expr').textContent.trim();
     return `Pressed ${list.join(' ')}. Display: ${$('#calc output').textContent}${expr ? ` (${expr})` : ''}.`;
   },
+  */
 
   async set_theme({ theme }) {
     const light = root.dataset.theme ? root.dataset.theme === 'light' : matchMedia('(prefers-color-scheme: light)').matches;

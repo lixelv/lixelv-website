@@ -3,7 +3,7 @@
     "type": "function",
     "function": {
       "name": "get_page_state",
-      "description": "Look at the visitor's page without changing it. Returns: which section or project card is in the middle of the screen, how far the page is scrolled, the theme, whether the chat is pinned, whether the screen is narrow (phone layout), and the current state of every demo (ControlHub computers and selection, Polycode status, Ionet mode and last step, Calculator display). Use it when you need to know where the visitor is or what a demo shows before acting.",
+      "description": "Look at the visitor's page without changing it. Returns: which section or project card is in the middle of the screen, how far the page is scrolled, the theme, whether the chat is pinned, whether the screen is narrow (phone layout), and the current state of every demo (ControlHub computers and selection, Polycode status, Ionet mode and last step). Use it when you need to know where the visitor is or what a demo shows before acting.",
       "parameters": { "type": "object", "properties": {} }
     }
   },
@@ -17,7 +17,7 @@
         "properties": {
           "target": {
             "type": "string",
-            "enum": ["top", "about", "stack", "work", "controlhub", "polycode", "glasschat", "ionet", "calculator", "path", "contact"]
+            "enum": ["top", "about", "stack", "work", "omnixon", "controlhub", "polycode", "glasschat", "ionet", "path", "contact"]
           }
         },
         "required": ["target"]
@@ -28,13 +28,13 @@
     "type": "function",
     "function": {
       "name": "go_to",
-      "description": "Scroll the visitor's page smoothly to a section (top, about, stack, work, path, contact) or to one of the five project cards (controlhub, polycode, glasschat, ionet, calculator). Returns when the scroll has finished. The demo tools bring their own card on screen, so you do not need go_to before them.",
+      "description": "Scroll the visitor's page smoothly to a section (top, about, stack, work, path, contact) or to one of the five project cards (omnixon, controlhub, polycode, glasschat, ionet; Omnixon has no demo, only its description and link). Returns when the scroll has finished. The demo tools bring their own card on screen, so you do not need go_to before them.",
       "parameters": {
         "type": "object",
         "properties": {
           "target": {
             "type": "string",
-            "enum": ["top", "about", "stack", "work", "controlhub", "polycode", "glasschat", "ionet", "calculator", "path", "contact"]
+            "enum": ["top", "about", "stack", "work", "omnixon", "controlhub", "polycode", "glasschat", "ionet", "path", "contact"]
           }
         },
         "required": ["target"]
@@ -94,13 +94,13 @@
     "type": "function",
     "function": {
       "name": "highlight",
-      "description": "Point at a part of the page without pressing anything: your cursor moves there and an outline pulses around it for the given time. The card that holds it is brought on screen first. Use it to show where to look before or after an action. Targets: hero, theme_button; controlhub.scripts, controlhub.computers, controlhub.run, controlhub.log; polycode.editor, polycode.run, polycode.console; glasschat.window; ionet.input, ionet.encryptor, ionet.transmitter, ionet.wire, ionet.receiver, ionet.decryptor, ionet.key; calculator.display, calculator.keys.",
+      "description": "Point at a part of the page without pressing anything: your cursor moves there and an outline pulses around it for the given time. The card that holds it is brought on screen first. Use it to show where to look before or after an action. Targets: hero, theme_button; controlhub.scripts, controlhub.computers, controlhub.run, controlhub.log; polycode.editor, polycode.run, polycode.console; glasschat.window; ionet.input, ionet.encryptor, ionet.transmitter, ionet.wire, ionet.receiver, ionet.decryptor, ionet.key.",
       "parameters": {
         "type": "object",
         "properties": {
           "target": {
             "type": "string",
-            "enum": ["hero", "theme_button", "controlhub.scripts", "controlhub.computers", "controlhub.run", "controlhub.log", "polycode.editor", "polycode.run", "polycode.console", "glasschat.window", "ionet.input", "ionet.encryptor", "ionet.transmitter", "ionet.wire", "ionet.receiver", "ionet.decryptor", "ionet.key", "calculator.display", "calculator.keys"]
+            "enum": ["hero", "theme_button", "controlhub.scripts", "controlhub.computers", "controlhub.run", "controlhub.log", "polycode.editor", "polycode.run", "polycode.console", "glasschat.window", "ionet.input", "ionet.encryptor", "ionet.transmitter", "ionet.wire", "ionet.receiver", "ionet.decryptor", "ionet.key"]
           },
           "seconds": { "type": "number", "minimum": 0.5, "maximum": 6, "description": "How long the outline stays. 2 by default." }
         },
@@ -248,6 +248,7 @@
   },
   {
     "type": "function",
+    "disabled": true,
     "function": {
       "name": "calculator_press",
       "description": "Calculator demo: press keys one after another with your cursor. Returns what the display shows afterwards.",
@@ -262,6 +263,7 @@
   },
   {
     "type": "function",
+    "disabled": true,
     "function": {
       "name": "calculator_clear",
       "description": "Calculator demo: press C. Returns the display.",

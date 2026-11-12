@@ -3,12 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>lixelv — backend developer</title>
-<meta name="description" content="lixelv. Backend development in Python, and automation.">
+<title>lixelv — backend and systems developer</title>
+<meta name="description" content="Backend and systems developer. LLM applications and agent platforms, Python, Go, C++.">
 <meta name="theme-color" content="#000000">
+<link rel="canonical" href="https://lixelv.com/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="lixelv — backend developer">
-<meta property="og:description" content="Backend development in Python, automation, and tools that solve real problems.">
+<meta property="og:site_name" content="lixelv">
+<meta property="og:url" content="https://lixelv.com/">
+<meta property="og:title" content="lixelv — backend and systems developer">
+<meta property="og:description" content="Backend and systems developer. LLM applications and agent platforms, Python, Go, C++.">
+<meta property="og:image" content="https://lixelv.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The word lixelv drawn in green and white pixels on black">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="lixelv — backend and systems developer">
+<meta name="twitter:description" content="Backend and systems developer. LLM applications and agent platforms, Python, Go, C++.">
+<meta name="twitter:image" content="https://lixelv.com/og.png">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,10 +44,11 @@
   </nav>
   <h1 class="sr">lixelv</h1>
   <div class="hero-foot">
-    <p>Backend developer. <span>Python, automation, and tools that solve real problems.</span></p>
+    <p>Backend and systems developer. <span>LLM applications and agent platforms, Python, Go, C++.</span></p>
     <div class="mono hints" aria-hidden="true">
       <span class="m"><kbd>Hold click</kbd>wider push</span>
       <span class="m"><kbd>Hold right click</kbd>waves</span>
+      <span class="t"><kbd>Touch and hold</kbd>push the dots</span>
       <span>Scroll <i>↓</i></span>
     </div>
   </div>
@@ -49,10 +61,12 @@
 
   <section id="stack" class="stack">
     <h2 class="mono label rv"><span class="px"></span><span data-scramble>Stack</span></h2>
-    <ul class="sr"><li>Python</li><li>FastAPI</li><li>Docker</li><li>PostgreSQL</li><li>Redis</li><li>Nginx</li><li>JavaScript</li></ul>
-    <div aria-hidden="true">
-      <div class="mq-row"><span>Python</span><span>FastAPI</span><span>Docker</span><span>PostgreSQL</span></div>
-      <div class="mq-row ghost"><span>Redis</span><span>Nginx</span><span>JavaScript</span><span>Automation</span></div>
+    <!-- The one copy screen readers get. The rows below are the picture of it: main.js repeats them
+         to loop the marquee, and every repeat is aria-hidden like the rows themselves. -->
+    <ul class="sr"><li>Python</li><li>Go</li><li>C++</li><li>TypeScript</li><li>SvelteKit</li><li>Swift</li><li>FastAPI</li><li>Docker</li><li>PostgreSQL</li><li>Redis</li><li>Nginx</li><li>JavaScript</li><li>Automation</li></ul>
+    <div class="mq" aria-hidden="true">
+      <div class="mq-row"><span>Python</span><span>Go</span><span>C++</span><span>TypeScript</span><span>SvelteKit</span><span>Swift</span></div>
+      <div class="mq-row ghost"><span>FastAPI</span><span>Docker</span><span>PostgreSQL</span><span>Redis</span><span>Nginx</span><span>JavaScript</span><span>Automation</span></div>
     </div>
   </section>
 
@@ -60,15 +74,30 @@
     <h2 class="mono label rv"><span class="px"></span><span data-scramble>Work</span></h2>
     <div class="cards">
 
-      <article class="card" style="--n:0">
+      <article class="card" style="--n:0" data-card="omnixon">
         <div class="card-info">
           <div>
             <span class="mono">01 / 05</span>
+            <h3>Omnixon</h3>
+            <p>A platform for AI agents that run in the cloud and are reached through an HTTP API. A solo project, launched in October 2026.</p>
+            <div class="tags"><span>AI agents</span><span>HTTP API</span><span>Cloud</span></div>
+          </div>
+          <a class="visit" href="https://omnixon.net/" target="_blank" rel="noopener">omnixon.net <i>↗</i></a>
+        </div>
+        <div class="viz">
+          <div class="ox" aria-hidden="true"><span class="px"></span>omnixon</div>
+        </div>
+      </article>
+
+      <article class="card" style="--n:1" data-card="controlhub">
+        <div class="card-info">
+          <div>
+            <span class="mono">02 / 05</span>
             <h3>ControlHub</h3>
             <p>A SaaS platform for managing many computers from one place. Write a Python script in the dashboard, pick the machines, and a client on each one runs it and reports back.</p>
             <div class="tags"><span>SvelteKit</span><span>PocketBase, Go</span><span>Python</span></div>
           </div>
-          <a class="visit" href="https://control-hub.org/" target="_blank" rel="noopener">control-hub.org <i>↗</i></a>
+          <a class="visit" href="https://github.com/control-hub" target="_blank" rel="noopener">github.com/control-hub <i>↗</i></a>
         </div>
         <div class="viz">
           <div class="ch" id="ch">
@@ -90,10 +119,10 @@
         </div>
       </article>
 
-      <article class="card" style="--n:1">
+      <article class="card" style="--n:2" data-card="polycode">
         <div class="card-info">
           <div>
-            <span class="mono">02 / 05</span>
+            <span class="mono">03 / 05</span>
             <h3>Polycode</h3>
             <p>A web IDE for learning Python and C++. Code runs in the browser through WebAssembly, never on a server, and live sessions sync peer to peer over WebRTC.</p>
             <div class="tags"><span>TypeScript</span><span>Go</span><span>WebAssembly</span><span>WebRTC</span></div>
@@ -122,10 +151,10 @@
         </div>
       </article>
 
-      <article class="card" style="--n:2">
+      <article class="card" style="--n:3" data-card="glasschat">
         <div class="card-info">
           <div>
-            <span class="mono">03 / 05</span>
+            <span class="mono">04 / 05</span>
             <h3>GlassChat</h3>
             <p>A native AI chat app for Mac, built with SwiftUI and Liquid Glass. Bring your own API key, pick a model, and connect MCP tools.</p>
             <div class="tags"><span>Swift</span><span>SwiftUI</span><span>MCP</span></div>
@@ -158,10 +187,10 @@
         </div>
       </article>
 
-      <article class="card" style="--n:3">
+      <article class="card" style="--n:4" data-card="ionet">
         <div class="card-info">
           <div>
-            <span class="mono">04 / 05</span>
+            <span class="mono">05 / 05</span>
             <h3>Ionet</h3>
             <p>A header-only C++ networking library for TCP apps: binary serialization, an ECDH handshake and ChaCha20 encryption, with zero external dependencies.</p>
             <div class="tags"><span>C++23</span><span>TCP</span><span>ECDH</span><span>ChaCha20</span></div>
@@ -188,10 +217,12 @@
         </div>
       </article>
 
-      <article class="card" style="--n:4">
+      <!-- Calculator: hidden for now, it is mentioned in Path (2024) instead. To bring it back, uncomment
+           this card, its script at the end of the page, its styles in demos.css and its tools (mcp.js, tools.json).
+      <article class="card" style="--n:5" data-card="calculator">
         <div class="card-info">
           <div>
-            <span class="mono">05 / 05</span>
+            <span class="mono">06 / 06</span>
             <h3>Calculator</h3>
             <p>A small, fast calculator on a pure stack. The one on the right is a sketch of the idea, and it works. Try the keyboard too.</p>
             <div class="tags"><span>JavaScript</span><span>No framework</span></div>
@@ -211,6 +242,7 @@
           </div>
         </div>
       </article>
+      -->
 
     </div>
   </section>
@@ -220,18 +252,27 @@
     <ol class="path" id="pathlist">
       <div class="rail" aria-hidden="true"><b></b></div>
       <li><span class="mono">2023</span><h3>First commits</h3><p>Joined GitHub in May and started with Python.</p></li>
-      <li><span class="mono">2024</span><h3>Bots and web tools</h3><p>Telegram bots, the calculator, and small apps in Svelte and TypeScript.</p></li>
-      <li><span class="mono">2025</span><h3>ControlHub</h3><p>Started the organisation in April. Published Docker templates for FastAPI and aiogram.</p></li>
+      <li><span class="mono">2024</span><h3>Bots and web tools</h3><p>Telegram bots, small apps in Svelte and TypeScript, and a <a class="inline" href="https://web-calculator-tau.vercel.app/" target="_blank" rel="noopener">calculator in plain JavaScript</a>.</p></li>
+      <li><span class="mono">2025</span><h3>ControlHub</h3><p>Started the ControlHub GitHub organisation in April. Published Docker templates for FastAPI and aiogram.</p></li>
       <li><span class="mono">Now</span><h3>ITMO University</h3><p>Studying, and shipping side projects in C++, Swift and TypeScript.</p></li>
     </ol>
   </section>
 
   <section id="contact" class="contact">
     <h2 class="mono label rv"><span class="px"></span><span data-scramble>Contact</span></h2>
+    <p class="open rv">Open to backend and LLM platform work.</p>
     <a class="big rv" href="https://github.com/lixelv" target="_blank" rel="noopener" aria-label="github.com/lixelv"><span class="big-t" aria-hidden="true">github.com/lixelv</span><span aria-hidden="true">↗</span></a>
+    <ul class="reach rv">
+      <li><a href="mailto:i@lixelv.com">i@lixelv.com</a></li>
+      <li><a href="https://t.me/lixelv" target="_blank" rel="noopener">t.me/lixelv <i aria-hidden="true">↗</i></a></li>
+    </ul>
     <footer class="mono">
       <span>© 2026 lixelv</span>
-      <a href="https://github.com/lixelv" target="_blank" rel="noopener">github.com/lixelv ↗</a>
+      <span class="foot-links">
+        <a href="mailto:i@lixelv.com">i@lixelv.com</a>
+        <a href="https://t.me/lixelv" target="_blank" rel="noopener">t.me/lixelv ↗</a>
+        <a href="https://github.com/lixelv" target="_blank" rel="noopener">github.com/lixelv ↗</a>
+      </span>
       <a href="#top">Back to top ↑</a>
     </footer>
   </section>
@@ -240,7 +281,7 @@
 <script src="js/main.js" defer></script><script type="module" src="js/demos/controlhub.js"></script>
 <script type="module" src="js/demos/polycode.js"></script>
 <script type="module" src="js/demos/ionet.js"></script>
-<script type="module" src="js/demos/calculator.js"></script>
+<!-- <script type="module" src="js/demos/calculator.js"></script> (the Calculator card is hidden) -->
 <script type="module" src="js/demos/glasschat.js"></script>
 </body>
 </html>

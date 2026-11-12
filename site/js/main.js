@@ -476,7 +476,12 @@
 
   /* ---------- marquee that rides the scroll ---------- */
   const rows = $$('.mq-row');
-  rows.forEach(r => { r.innerHTML = r.innerHTML.repeat(6); });
+  // Five more copies of each row make the loop seamless. The list itself is read once, from the
+  // .sr list in index.html; the rows are aria-hidden, and so is every copy, should one ever move out.
+  rows.forEach(r => {
+    const one = [...r.children];
+    for (let k = 1; k < 6; k++) one.forEach(el => { const d = el.cloneNode(true); d.setAttribute('aria-hidden', 'true'); r.append(d); });
+  });
   if (!reduce) {
     const off = [0, 0]; let vel = 0, lastY = scrollY, mqRaf = 0, mqVis = false, mqT = 0, widths = [];
     const measure = () => { widths = rows.map(r => r.scrollWidth / 6); };

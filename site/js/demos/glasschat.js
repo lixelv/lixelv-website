@@ -6,12 +6,13 @@ import { $ } from '../util.js';
 import { callTool, hurry } from './mcp.js';
 
 const msgs = $('#gc-msgs'), form = $('#gc-form'), input = $('#gc-in'), chips = $('#gc-chips');
-const quotaEl = $('#gc-quota'), modelEl = $('#gc-model'), mcpEl = $('#gc-mcp');
+const quotaEl = $('#gc-quota'), modelEl = $('#gc-model'), mcpEl = $('#gc-mcp'), sendBtn = $('button', form);
 const SUGGESTIONS = ['What does he build?', 'Run some Python'];
 const GUIDE = '▶ Guide', STOP = '■ Stop';
 const MAX_ROUNDS = 8, GUIDE_ROUNDS = 26;   // model calls per message; the server allows fewer and has the last word
 const history = [];              // what the model sees: [{role, content, tool_calls?, tool_call_id?}]
 let busy = false, limit = 8, remaining = null, available = true;
+let outShown = false, outForAll = false;   // the "no messages left" note is said once; outForAll: the shared ceiling, not the visitor's own
 // The Guide button: the model presents the demos by itself, choosing the tools and the pauses.
 let guideText = 'Give me the guided tour.', guiding = false, stopping = false, abort = null, pending = null;
 
@@ -44,13 +45,30 @@ function setChips(list) {
     return b;
   }));
 }
+/** Until the quota resets at midnight UTC (the server counts by UTC day), in words. */
+function untilReset() {
+  const now = new Date(), next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  const min = Math.ceil((next - now) / 60000);
+  return min < 60 ? `in ${min} min` : `in about ${Math.round(min / 60)} h`;
+}
 function setQuota() {
   if (!available) { quotaEl.textContent = ''; return; }
   if (remaining === null) { quotaEl.textContent = ''; return; }
-  quotaEl.textContent = remaining > 0 ? `${remaining} of ${limit} messages left today` : `Daily limit reached (${limit} messages)`;
-  quotaEl.classList.toggle('out', remaining <= 0);
-  input.disabled = remaining <= 0;
-  if (remaining <= 0) { input.placeholder = 'Back tomorrow'; if (!busy) setChips([GUIDE]); }
+  const out = remaining <= 0;
+  quotaEl.textContent = out ? `No messages left today, back ${untilReset()}` : `${remaining} of ${limit} messages left today`;
+  quotaEl.classList.toggle('out', out);
+  // The chat cannot take a message any more: say so in the field, and switch the field off.
+  input.disabled = sendBtn.disabled = out;
+  form.classList.toggle('off', out);
+  input.placeholder = out ? 'Daily limit reached' : 'Ask about lixelv';
+  if (!out) return;
+  if (!busy) setChips([GUIDE]);
+  if (!outShown && !busy) {
+    outShown = true;
+    bubble('ai note', outForAll
+      ? `The chat has used its daily budget for all visitors, so it is off until midnight UTC (${untilReset()}). Guide still works: it runs the tools from a script, without the model.`
+      : `You have used all ${limit} messages for today. The chat opens again at midnight UTC (${untilReset()}). Guide still works: it runs the tools from a script, without the model.`);
+  }
 }
 function prettyModel(id) {       // "claude-haiku-5.5" -> "Claude Haiku 5.5"
   return id.split('-').map(w => /^\d/.test(w) ? w : w[0].toUpperCase() + w.slice(1)).join(' ');
@@ -159,8 +177,12 @@ async function send(text, asGuide = false) {
     if (!stopping) {
       history.length = mark;     // the model never saw this turn through
       reply = bubble('ai note');
-      if (err.status === 429) { remaining = 0; reply.textContent = `That was the last one: ${limit} messages a day. The limit resets at midnight UTC.`; }
-      else if (err.status === 503) reply.textContent = 'No API key is set on this server yet, so there is no model to answer.';
+      if (err.status === 429) {
+        // The server says 429 for the visitor's own limit and for the shared one. With messages
+        // still left on the counter, it was the shared one.
+        outForAll = remaining !== null && remaining > 0;
+        remaining = 0; reply.remove(); reply = null;   // setQuota, below, explains it once
+      } else if (err.status === 503) reply.textContent = 'No API key is set on this server yet, so there is no model to answer.';
       else if (err.status === 400) reply.textContent = 'That message is too long. Try a shorter one.';
       else if (err.status === 403) reply.textContent = 'That took too long to finish. Ask again and I will pick it up.';
       else if (answer) reply.textContent = answer + ' …the connection dropped.';
@@ -200,9 +222,11 @@ async function tour() {
     ? { code: 'name = input("Who is this? ")\nfor i in range(1, 4):\n    print(name * i)', stdin: ['lixelv '] }
     : { code: 'for i in range(1, 4):\n    print("lixelv " * i)' });
   await act('Ionet: a message through a real key exchange and a real cipher.', 'ionet_send', { message: 'hi, lixelv', encrypt: true });
-  const calc = await act('And the calculator.', 'calculator_press', { keys: '6*7=' });
-  const shown = /Display: ([^\s.(]+)/.exec(calc);
-  bubble('ai', `${shown ? `6 × 7 = ${shown[1]}. ` : ''}That is the tour. Press Esc and I go back to my card.`);
+  // The Calculator card is hidden (index.html), so the tour no longer ends on it:
+  // const calc = await act('And the calculator.', 'calculator_press', { keys: '6*7=' });
+  // const shown = /Display: ([^\s.(]+)/.exec(calc);
+  // bubble('ai', `${shown ? `6 × 7 = ${shown[1]}. ` : ''}That is the tour. Press Esc and I go back to my card.`);
+  bubble('ai', 'That is the tour. Press Esc and I go back to my card.');
   busy = false;
   setChips(available && remaining !== 0 ? [...SUGGESTIONS, GUIDE] : [GUIDE]);
 }

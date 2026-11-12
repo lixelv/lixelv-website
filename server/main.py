@@ -91,7 +91,13 @@ GUIDE_REQUEST = "Give me the guided tour."  # what the Guide button sends as the
 TURN_TTL = 240  # seconds a page has to run the tools and come back
 SYSTEM_PROMPT = (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8").strip()
 GUIDE_PROMPT = SYSTEM_PROMPT + "\n\n" + (Path(__file__).parent / "guide.md").read_text(encoding="utf-8").strip()
-TOOLS: list[dict] = json.loads((Path(__file__).parent / "tools.json").read_text(encoding="utf-8"))
+# A tool marked "disabled": true stays described in tools.json but is not offered to the model
+# (the Calculator's, while its card is hidden). The mark itself never goes upstream.
+TOOLS: list[dict] = [
+    tool
+    for tool in json.loads((Path(__file__).parent / "tools.json").read_text(encoding="utf-8"))
+    if not tool.get("disabled")
+]
 TOOL_NAMES = {tool["function"]["name"] for tool in TOOLS}
 
 

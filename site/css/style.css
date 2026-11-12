@@ -135,11 +135,6 @@ section { padding: clamp(72px, 12vw, 170px) var(--pad); }
   position: relative; border-left: 1px solid var(--line); background-color: var(--bg);
   display: grid; place-items: center; overflow: hidden; padding: 20px;
 }
-.viz > .ox {
-  display: flex; align-items: center; justify-content: center; gap: .22em; width: auto;
-  font: 600 clamp(40px, 6.4vw, 96px)/1 var(--sans); letter-spacing: -.055em;
-}
-.ox .px { width: .16em; height: .16em; }
 /* ---------- path ---------- */
 .path { list-style: none; margin: 0; padding: 0 0 0 clamp(28px, 5vw, 72px); position: relative; max-width: 900px; }
 .rail { position: absolute; left: 3px; top: 6px; bottom: 6px; width: 1px; background: var(--line); }

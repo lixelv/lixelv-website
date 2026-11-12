@@ -79,13 +79,52 @@
           <div>
             <span class="mono">01 / 05</span>
             <h3>Omnixon</h3>
-            <p>A platform for AI agents that run in the cloud and are reached through an HTTP API. A solo project, launched in October 2026.</p>
+            <p>A platform for AI agents that run in the cloud and are reached through an HTTP API. A solo project created for company internal usage.</p>
             <div class="tags"><span>AI agents</span><span>HTTP API</span><span>Cloud</span></div>
           </div>
           <a class="visit" href="https://omnixon.net/" target="_blank" rel="noopener">omnixon.net <i>↗</i></a>
         </div>
         <div class="viz">
-          <div class="ox" aria-hidden="true"><span class="px"></span>omnixon</div>
+          <!-- A diagram, not a demo: messages come in from the channels, Omnixon hands each one to an agent,
+               and every agent runs on its own model. Decorative for the layout; read as one image. -->
+          <div class="ox" role="img" aria-label="Diagram: messages from Telegram, WhatsApp, Discord and a website reach Omnixon, which routes them to support, sales, docs and booking agents; each agent runs on its own model: Claude, GPT, Gemini or a local one.">
+            <div class="ox-cap" aria-hidden="true"><span class="c1">Channels</span><span class="c3">Agents</span><span class="c4">Models</span></div>
+            <div class="ox-g" aria-hidden="true">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" fill="none">
+                <defs><g id="ox-edges">
+                <path d="M 23 12.5 C 27 12.5, 27 38, 31 38" vector-effect="non-scaling-stroke"/>
+                <path d="M 23 37.5 C 27 37.5, 27 46, 31 46" vector-effect="non-scaling-stroke"/>
+                <path d="M 23 62.5 C 27 62.5, 27 54, 31 54" vector-effect="non-scaling-stroke"/>
+                <path d="M 23 87.5 C 27 87.5, 27 62, 31 62" vector-effect="non-scaling-stroke"/>
+                <path d="M 49 38 C 53 38, 53 12.5, 57 12.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 49 46 C 53 46, 53 37.5, 57 37.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 49 54 C 53 54, 53 62.5, 57 62.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 49 62 C 53 62, 53 87.5, 57 87.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 77 12.5 C 80.5 12.5, 80.5 12.5, 84 12.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 77 37.5 C 80.5 37.5, 80.5 87.5, 84 87.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 77 62.5 C 80.5 62.5, 80.5 37.5, 84 37.5" vector-effect="non-scaling-stroke"/>
+                <path d="M 77 87.5 C 80.5 87.5, 80.5 62.5, 84 62.5" vector-effect="non-scaling-stroke"/>
+                </g></defs>
+                <use href="#ox-edges" class="ox-line"/>
+                <use href="#ox-edges" class="ox-flow"/>
+              </svg>
+              <ul>
+              <li class="c1 r1">Telegram</li>
+              <li class="c1 r2">WhatsApp</li>
+              <li class="c1 r3">Discord</li>
+              <li class="c1 r4">Website</li>
+              <li class="c3 r1">Support</li>
+              <li class="c3 r2">Sales</li>
+              <li class="c3 r3">Docs</li>
+              <li class="c3 r4">Booking</li>
+              <li class="c4 r1">Claude</li>
+              <li class="c4 r2">GPT</li>
+              <li class="c4 r3">Gemini</li>
+              <li class="c4 r4">Local</li>
+              </ul>
+              <div class="ox-hub"><span class="px"></span>omnixon</div>
+            </div>
+          </div>
         </div>
       </article>
 
@@ -94,7 +133,7 @@
           <div>
             <span class="mono">02 / 05</span>
             <h3>ControlHub</h3>
-            <p>A SaaS platform for managing many computers from one place. Write a Python script in the dashboard, pick the machines, and a client on each one runs it and reports back.</p>
+            <p>A SaaS platform for managing many computers from one place. Write a Python script in the dashboard, pick the machines, and a client on each one runs it and reports back. Supports OAuth2 sign-in.</p>
             <div class="tags"><span>SvelteKit</span><span>PocketBase, Go</span><span>Python</span></div>
           </div>
           <a class="visit" href="https://github.com/control-hub" target="_blank" rel="noopener">github.com/control-hub <i>↗</i></a>
@@ -124,7 +163,7 @@
           <div>
             <span class="mono">03 / 05</span>
             <h3>Polycode</h3>
-            <p>A web IDE for learning Python and C++. Code runs in the browser through WebAssembly, never on a server, and live sessions sync peer to peer over WebRTC.</p>
+            <p>A web IDE for learning Python and C++. Code runs in the browser through WebAssembly, never on a server, and live sessions sync peer to peer over WebRTC. Tests check your code as you write it.</p>
             <div class="tags"><span>TypeScript</span><span>Go</span><span>WebAssembly</span><span>WebRTC</span></div>
           </div>
           <a class="visit" href="https://py.lixelv.com/" target="_blank" rel="noopener">py.lixelv.com <i>↗</i></a>
@@ -192,7 +231,7 @@
           <div>
             <span class="mono">05 / 05</span>
             <h3>Ionet</h3>
-            <p>A header-only C++ networking library for TCP apps: binary serialization, an ECDH handshake and ChaCha20 encryption, with zero external dependencies.</p>
+            <p>A header-only C++ networking library for TCP apps: binary serialization, an ECDH handshake on Curve25519 and ChaCha20 encryption, with zero external dependencies.</p>
             <div class="tags"><span>C++23</span><span>TCP</span><span>ECDH</span><span>ChaCha20</span></div>
           </div>
           <a class="visit" href="https://github.com/lixelv/ionet" target="_blank" rel="noopener">Source on GitHub <i>↗</i></a>

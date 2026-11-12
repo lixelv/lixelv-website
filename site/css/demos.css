@@ -17,10 +17,43 @@
 @keyframes pulse { 50% { opacity: .45; } }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
+/* ---------- Omnixon: channels, hub, agents, models (a diagram, no script) ---------- */
+.viz > .ox { max-width: 520px; font: 400 11px/1 var(--mono); }
+.ox .c1 { left: 0; width: 23%; } .ox .c3 { left: 57%; width: 20%; } .ox .c4 { left: 84%; width: 16%; }
+.ox .r1 { top: 12.5%; } .ox .r2 { top: 37.5%; } .ox .r3 { top: 62.5%; } .ox .r4 { top: 87.5%; }
+.ox-cap { position: relative; height: 22px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ox-cap span { position: absolute; top: 0; text-align: center; }
+.ox-g { position: relative; height: 196px; }
+.ox-g svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ox-line { stroke: var(--line); stroke-width: 1.5; }
+.ox-flow { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 2 16; animation: ox-flow 1.4s linear infinite; }
+@keyframes ox-flow { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
+.ox-g ul { list-style: none; margin: 0; padding: 0; }
+.ox-g li {
+  position: absolute; height: 28px; margin-top: -14px; display: grid; place-items: center;
+  overflow: hidden; white-space: nowrap; background: var(--card); border: 1px solid var(--line); color: var(--soft);
+}
+.ox-g li.c1 { border-radius: 99px; }                       /* channels: pills */
+.ox-g li.c3 { border-radius: 7px; color: var(--fg); }      /* agents: blocks */
+.ox-g li.c4 { border-radius: 7px; border-style: dashed; background: var(--bg); color: var(--muted); } /* models: outlines */
+.ox-hub {
+  position: absolute; left: 31%; width: 18%; top: 28%; height: 44%; display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 0 0 4px var(--accent-soft); font: 600 13px/1 var(--sans); letter-spacing: -.03em; color: var(--fg);
+}
+.ox-hub .px { width: 5px; height: 5px; }
+@media (max-width: 480px) {
+  .viz > .ox { font-size: 10px; }
+  /* wider than its ports: the box simply covers the ends of the edges */
+  .ox-hub { left: 28.5%; width: 23%; font-size: 11px; gap: 3px; } .ox-hub .px { width: 4px; height: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .ox-flow { display: none; } }
+
 /* ---------- ControlHub: a tiny dashboard ---------- */
 .ch { display: grid; gap: 10px; font: 400 12px/1.5 var(--mono); }
-.ch-bar { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
-.ch-scripts { display: flex; gap: 2px; flex-wrap: wrap; min-width: 0; }
+.ch-bar { display: grid; grid-template-columns: minmax(0, 1fr) 12.5em; gap: 8px; align-items: stretch; }
+/* a fixed 3 x 2 grid of scripts and a fixed-width run button, so a new run label never moves the tabs */
+.ch-scripts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; min-width: 0; }
 .ch-scripts button {
   font: inherit; padding: 5px 9px; border-radius: 6px; border: 1px solid transparent; background: none;
   color: var(--muted); cursor: pointer; transition: color .2s, border-color .2s, background-color .2s;
@@ -28,8 +61,8 @@
 .ch-scripts button:hover { color: var(--fg); }
 .ch-scripts button[aria-pressed="true"] { color: var(--fg); border-color: var(--line); background: var(--card); }
 .ch-run {
-  flex: none; font: 500 12px/1 var(--mono); padding: 9px 12px; border-radius: 8px; border: 0;
-  background: var(--accent); color: var(--bg); cursor: pointer; white-space: nowrap; transition: transform .1s, background-color .2s;
+  font: 500 12px/1.3 var(--mono); padding: 9px 12px; border-radius: 8px; border: 0; text-wrap: balance;
+  background: var(--accent); color: var(--bg); cursor: pointer; transition: transform .1s, background-color .2s;
 }
 .ch-run:active { transform: scale(.95); }
 .ch-run:disabled { background: var(--line); color: var(--muted); cursor: default; }
@@ -370,9 +403,8 @@
   .nx-key span { display: none; }
   .nx-bar { flex-wrap: wrap; }
   .nx-sw { flex: 1 1 100%; }
-  .ch-bar { flex-wrap: wrap; }
-  .ch-scripts { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .ch-scripts button { padding: 5px 7px; font-size: 11px; white-space: nowrap; }
-  .ch-run { flex: 1; padding: 11px 12px; }
+  .ch-bar { grid-template-columns: minmax(0, 1fr); }
+  .ch-scripts button { padding: 5px 4px; font-size: 11px; }
+  .ch-run { padding: 11px 12px; }
   .pc .nm::after { display: none; }
 }

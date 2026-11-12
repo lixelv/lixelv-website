@@ -3,7 +3,7 @@
 // The model also has tools (the "site" MCP server): when it calls one, mcp.js carries it out
 // on this page and the result goes back, until the model answers in words.
 import { $ } from '../util.js';
-import { callTool, hurry } from './mcp.js';
+import { callTool, hurry, pageState } from './mcp.js';
 
 const msgs = $('#gc-msgs'), form = $('#gc-form'), input = $('#gc-in'), chips = $('#gc-chips');
 const quotaEl = $('#gc-quota'), modelEl = $('#gc-model'), mcpEl = $('#gc-mcp'), sendBtn = $('button', form);
@@ -128,9 +128,10 @@ async function send(text, asGuide = false) {
     for (let round = 0, rounds = asGuide ? GUIDE_ROUNDS : MAX_ROUNDS; round < rounds && !stopping; round++) {
       reply = typing(); answer = '';
       abort = new AbortController();
+      const page = (await pageState()).slice(0, 2400);   // what the page shows right now, read fresh on every round
       const ask = () => fetch('api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: abort.signal,
-        body: JSON.stringify({ messages: history, turn, guide: asGuide }),
+        body: JSON.stringify({ messages: history, turn, guide: asGuide, page }),
       });
       // The first request after a quiet spell can fail on the way (a dropped connection, a 502).
       // The server has refunded the message, so one more try costs nothing.

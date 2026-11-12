@@ -216,9 +216,33 @@ function inView() {
   return `the ${Object.keys(SECTION).find(k => SECTION[k] === '#' + sec.id) || sec.id || 'footer'} section`;
 }
 
+/** The page from top to bottom, each part with where it sits relative to the screen. */
+function whereIs() {
+  const parts = [['top (the name in pixels)', $('.hero')], ...['about', 'stack'].map(k => [`${k} section`, $(SECTION[k])]),
+    ...cards.map(c => [`${c.dataset.card} card`, c]), ...['path', 'contact'].map(k => [`${k} section`, $(SECTION[k])])].filter(p => p[1]);
+  // On a wide screen the cards are sticky and pile up, so their boxes overlap: what is really in front
+  // is whatever sits at the same point inView() looks at. The ones under it count as passed.
+  const hit = document.elementFromPoint(innerWidth * (narrow() ? .5 : .75), innerHeight * .5);
+  const front = parts.findIndex(([, el]) => hit && el.contains(hit));
+  return parts.map(([name, el], i) => {
+    const r = el.getBoundingClientRect();
+    const where = i === front ? 'IN VIEW (middle of the screen)' : r.bottom <= 0 || (front >= 0 && i < front && el.matches('.card')) ? 'above (passed)'
+      : r.top >= innerHeight ? 'below' : 'partly on screen';
+    return `${name}: ${where}`;
+  });
+}
+
 /* ControlHub */
 const chTiles = () => $$('#ch-grid .pc');
-const chState = () => chTiles().map(t => `${$('.nm span', t).textContent} ${t.dataset.status}${t.classList.contains('sel') ? ' [selected]' : ''}${t.classList.contains('full') ? ' (notepad, fullscreen)' : t.classList.contains('has-win') ? ' (notepad open)' : ''}`).join('; ');
+/** One line per computer, so the model can see what a script would change before it runs one. */
+const chState = () => {
+  const tab = $('#ch-scripts [aria-pressed="true"]'), run = $('#ch-run');
+  const pcs = chTiles().map(t => {
+    const win = t.classList.contains('full') ? 'notepad open, fullscreen' : t.classList.contains('has-win') ? 'notepad open, not fullscreen' : 'no window';
+    return `${$('.nm span', t).textContent}: ${t.dataset.status}, ${win}${t.classList.contains('sel') ? ', selected' : ''}`;
+  });
+  return `script tab "${tab ? tab.textContent : '?'}", Run button "${run.textContent.trim()}"${run.disabled ? ' (disabled)' : ''}.\n  ${pcs.join('\n  ')}`;
+};
 /** Chooses a script and, if given, the computers. Returns a message when it cannot. */
 async function chSelect(script, computers) {
   const id = SCRIPT[script];
@@ -329,6 +353,13 @@ const TOOLS = {
     await scrollToY(scrollY + by * innerHeight);
     const moved = Math.round(scrollY - from);
     return `${moved ? `Scrolled ${moved > 0 ? 'down' : 'up'} ${Math.abs(moved)} px.` : 'The page is already at its end there.'} In view now: ${inView()}.`;
+  },
+
+  async where_is_visitor() {
+    const max = Math.max(1, root.scrollHeight - innerHeight);
+    return [`In view: ${inView()}. Scrolled ${Math.round(scrollY / max * 100)}% of the page${scrollY < 4 ? ' (at the very top)' : scrollY >= max - 4 ? ' (at the very end)' : ''}.`,
+      `Screen: ${innerWidth}x${innerHeight}, ${narrow() ? 'phone layout, cards stacked' : 'wide, cards stack as you scroll'}. Chat: ${pinned ? 'pinned to the side' : 'in its card'}.`,
+      'The page, top to bottom:', ...whereIs().map(l => '  ' + l)].join('\n');
   },
 
   async get_page_state() {
@@ -512,6 +543,8 @@ const TOOLS = {
 };
 
 export const toolNames = Object.keys(TOOLS);
+/** The state sent with every chat request, so the model starts from what the page shows (not a tool call). */
+export const pageState = () => TOOLS.get_page_state().catch(() => '');
 let queue = Promise.resolve();
 /** Runs one tool and returns its result as text. Calls are carried out one at a time. */
 export function callTool(name, args) {

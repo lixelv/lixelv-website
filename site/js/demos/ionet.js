@@ -105,18 +105,16 @@ async function send() {
     if (!live()) return;
   }
 
-  // --- Transmitter: frame = 4-byte length + payload
+  // --- Transmitter: the payload goes out (the length prefix of the real frame is not drawn)
   active('tx');
-  const lenCell = `<i class="len">len ${bytes.length}</i>`;
   if (secure) {
-    step.textContent = 'Transmitter: the bytes leave encrypted, the length first, then the ciphertext';
-    box.tx.innerHTML = lenCell + cellsHTML([...payload].map(hex), 'c');
+    step.textContent = 'Transmitter: the bytes leave encrypted, only the ciphertext goes out';
+    box.tx.innerHTML = cellsHTML([...payload].map(hex), 'c');
   } else {
     step.textContent = 'Transmitter: the text becomes bytes and goes out as it is';
     box.tx.innerHTML = cellsHTML(chars, 'ch');
     await sleep(480); if (!live()) return;
     await morph(box.tx, [...bytes].map(hex), 'p', live); if (!live()) return;
-    box.tx.insertAdjacentHTML('afterbegin', lenCell);
   }
   await sleep(420); if (!live()) return;
 

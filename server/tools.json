@@ -2,8 +2,16 @@
   {
     "type": "function",
     "function": {
+      "name": "where_is_visitor",
+      "description": "Find out where the visitor has scrolled, without changing anything. Returns the section or project card in the middle of the screen, how far down the page they are (percent, and whether at the very top or end), the screen size and layout, whether the chat is pinned, and the whole page from top to bottom with each part marked above, partly on screen, in view or below. Use it before moving the visitor, so you do not scroll to where they already are.",
+      "parameters": { "type": "object", "properties": {} }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "get_page_state",
-      "description": "Look at the visitor's page without changing it. Returns: which section or project card is in the middle of the screen, how far the page is scrolled, the theme, whether the chat is pinned, whether the screen is narrow (phone layout), and the current state of every demo (ControlHub computers and selection, Polycode status, Ionet mode and last step). Use it when you need to know where the visitor is or what a demo shows before acting.",
+      "description": "Look at the visitor's page without changing it. Returns: which section or card is in view, how far the page is scrolled, the theme, whether the chat is pinned, whether the screen is narrow, and the state of every demo: for ControlHub the script tab, the Run button and, per computer, its status, its window (none, notepad, notepad fullscreen) and whether it is selected; Polycode status; Ionet mode and last step. The same text comes with every request (under \"The page right now\" in your instructions); call this to look again after your own actions.",
       "parameters": { "type": "object", "properties": {} }
     }
   },

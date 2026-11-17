@@ -1,2 +1,7 @@
+# The site itself is open to every crawler, AI crawlers included.
+# /api/ is the chat backend (the LLM proxy): nothing to index there, and every call costs money.
 User-agent: *
 Allow: /
+Disallow: /api/
+
+Sitemap: https://lixelv.com/sitemap.xml

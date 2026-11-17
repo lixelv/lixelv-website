@@ -6,7 +6,11 @@
 <title>lixelv — backend and systems developer</title>
 <meta name="description" content="Backend and systems developer. LLM applications and agent platforms, Python, Go, C++.">
 <meta name="theme-color" content="#000000">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+<meta name="author" content="lixelv">
 <link rel="canonical" href="https://lixelv.com/">
+<link rel="alternate" type="text/plain" href="https://lixelv.com/llms.txt" title="Plain-text version for language models">
+<link rel="sitemap" type="application/xml" href="/sitemap.xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="lixelv">
 <meta property="og:url" content="https://lixelv.com/">
@@ -26,6 +30,54 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/demos.css">
+<!-- Structured data for search engines: who this is and what the projects are. Keep it in step with the cards below and llms.txt. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://lixelv.com/#site",
+      "url": "https://lixelv.com/",
+      "name": "lixelv",
+      "inLanguage": "en",
+      "author": { "@id": "https://lixelv.com/#me" }
+    },
+    {
+      "@type": "ProfilePage",
+      "@id": "https://lixelv.com/#page",
+      "url": "https://lixelv.com/",
+      "name": "lixelv, backend and systems developer",
+      "isPartOf": { "@id": "https://lixelv.com/#site" },
+      "mainEntity": { "@id": "https://lixelv.com/#me" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://lixelv.com/#me",
+      "name": "lixelv",
+      "url": "https://lixelv.com/",
+      "image": "https://lixelv.com/og.png",
+      "jobTitle": "Backend and systems developer",
+      "description": "Backend and systems developer. LLM applications and agent platforms, Python, Go, C++.",
+      "email": "mailto:i@lixelv.com",
+      "affiliation": { "@type": "CollegeOrUniversity", "name": "ITMO University" },
+      "knowsAbout": ["Python", "Go", "C++", "TypeScript", "SvelteKit", "Swift", "FastAPI", "Docker", "PostgreSQL", "Redis", "Nginx", "JavaScript", "LLM applications", "AI agents", "MCP", "Automation"],
+      "sameAs": ["https://github.com/lixelv", "https://t.me/lixelv"]
+    },
+    {
+      "@type": "ItemList",
+      "name": "Work",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "item": { "@type": "SoftwareApplication", "name": "Omnixon", "url": "https://omnixon.net/", "applicationCategory": "DeveloperApplication", "description": "A platform for AI agents that run in the cloud and are reached through an HTTP API, with MCP, A2A and RAG support.", "author": { "@id": "https://lixelv.com/#me" } } },
+        { "@type": "ListItem", "position": 2, "item": { "@type": "SoftwareApplication", "name": "ControlHub", "url": "https://github.com/control-hub", "applicationCategory": "BusinessApplication", "description": "A SaaS platform for managing many computers from one place with Python scripts.", "author": { "@id": "https://lixelv.com/#me" } } },
+        { "@type": "ListItem", "position": 3, "item": { "@type": "WebApplication", "name": "Polycode", "url": "https://py.lixelv.com/", "applicationCategory": "EducationalApplication", "description": "A web IDE for learning Python and C++; code runs in the browser through WebAssembly and live sessions sync over WebRTC.", "author": { "@id": "https://lixelv.com/#me" } } },
+        { "@type": "ListItem", "position": 4, "item": { "@type": "SoftwareApplication", "name": "GlassChat", "url": "https://lixelv.github.io/glasschat/", "operatingSystem": "macOS", "applicationCategory": "UtilitiesApplication", "description": "A native AI chat app for Mac, built with SwiftUI and Liquid Glass, with MCP tools.", "author": { "@id": "https://lixelv.com/#me" } } },
+        { "@type": "ListItem", "position": 5, "item": { "@type": "SoftwareSourceCode", "name": "Ionet", "codeRepository": "https://github.com/lixelv/ionet", "programmingLanguage": "C++", "description": "A header-only C++ networking library for TCP apps with an ECDH handshake on Curve25519 and ChaCha20 encryption.", "author": { "@id": "https://lixelv.com/#me" } } }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <div id="bar" aria-hidden="true"></div>

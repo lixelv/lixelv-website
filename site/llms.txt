@@ -1,0 +1,32 @@
+# lixelv
+
+> Backend and systems developer: LLM applications and agent platforms, Python, Go, C++. Studies at ITMO University. Open to backend and LLM platform work.
+
+This is the plain-text version of https://lixelv.com for language models and other readers. The page itself has interactive demos of the projects below; their descriptions here are the same as on the page.
+
+lixelv does backend development in Python and automation, and likes building tools that solve real problems, from server management to handy development templates.
+
+## Stack
+
+Python, Go, C++, TypeScript, SvelteKit, Swift, FastAPI, Docker, PostgreSQL, Redis, Nginx, JavaScript, automation.
+
+## Work
+
+- [Omnixon](https://omnixon.net/): a platform for AI agents that run in the cloud and are reached through an HTTP API. A solo project created for company internal usage. Agents can use external MCP servers, the whole system is reachable over MCP, and it supports A2A and RAG. Tags: AI agents, HTTP API, cloud.
+- [ControlHub](https://github.com/control-hub): a SaaS platform for managing many computers from one place. Write a Python script in the dashboard, pick the machines, and a client on each one runs it and reports back. Supports OAuth2 sign-in. Tags: SvelteKit, PocketBase (Go), Python.
+- [Polycode](https://py.lixelv.com/): a web IDE for learning Python and C++. Code runs in the browser through WebAssembly, never on a server, and live sessions sync peer to peer over WebRTC. Tests check your code as you write it. Source: https://github.com/lixelv/polycode. Tags: TypeScript, Go, WebAssembly, WebRTC.
+- [GlassChat](https://lixelv.github.io/glasschat/): a native AI chat app for Mac, built with SwiftUI and Liquid Glass. Bring your own API key, pick a model, and connect MCP tools. Source: https://github.com/lixelv/glasschat. Tags: Swift, SwiftUI, MCP.
+- [Ionet](https://github.com/lixelv/ionet): a header-only C++ networking library for TCP apps: binary serialization, an ECDH handshake on Curve25519 and ChaCha20 encryption, with zero external dependencies. Tags: C++23, TCP, ECDH, ChaCha20.
+
+## Path
+
+- 2023, first commits: joined GitHub in May and started with Python.
+- 2024, bots and web tools: Telegram bots, small apps in Svelte and TypeScript, and a [calculator in plain JavaScript](https://web-calculator-tau.vercel.app/).
+- 2025, ControlHub: started the ControlHub GitHub organisation in April. Published Docker templates for FastAPI and aiogram.
+- Now, ITMO University: studying, and shipping side projects in C++, Swift and TypeScript.
+
+## Contact
+
+- Email: i@lixelv.com
+- Telegram: https://t.me/lixelv
+- GitHub: https://github.com/lixelv

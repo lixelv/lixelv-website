@@ -267,6 +267,9 @@ async def security_headers(request: Request, call_next):
     # Always revalidate the page's own files (they carry an ETag, so this costs a 304). Without it
     # a browser may pair a cached script with a newer one that imports from it; Safari is keen on that.
     h.setdefault("Cache-Control", "no-cache")
+    # The chat backend is for the page, not for search engines or AI crawlers (robots.txt says the same).
+    if request.url.path.startswith("/api/"):
+        h["X-Robots-Tag"] = "noindex, nofollow"
     return response
 
 
